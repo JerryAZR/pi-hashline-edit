@@ -196,65 +196,19 @@ function getRenderablePreviewInput(args: unknown): EditRequestParams | null {
   return request.edits.length > 0 ? request : null;
 }
 
-function colorDiffLine(
-  line: string,
-  theme: { fg: (token: string, text: string) => string },
-): string {
-  const prefix = line[0];
-  if (prefix !== "-" && prefix !== "+" && prefix !== " ") {
-    return theme.fg("dim", line);
-  }
-  if (line.startsWith("---") || line.startsWith("+++")) {
-    return theme.fg("dim", line);
-  }
-
-  const sepIdx = line.indexOf(CONTENT_SEP);
-  if (sepIdx === -1) {
-    if (prefix === "-") return theme.fg("error", line);
-    if (prefix === "+") return theme.fg("success", line);
-    return theme.fg("dim", line);
-  }
-
-  const meta = line.slice(0, sepIdx); // prefix + lineNum + anchor/pad
-  const content = line.slice(sepIdx + CONTENT_SEP.length);
-
-  const digits = meta.match(/\d+/);
-  if (!digits) {
-    if (prefix === "-") return theme.fg("error", line);
-    if (prefix === "+") return theme.fg("success", line);
-    return theme.fg("dim", line);
-  }
-
-  const lineNumStart = meta.indexOf(digits[0]);
-  const lineNumEnd = lineNumStart + digits[0].length;
-  const prefixAndLineNum = meta.slice(0, lineNumEnd);
-  const anchorAndSep = meta.slice(lineNumEnd) + CONTENT_SEP;
-
-  if (prefix === "-") {
-    return (
-      theme.fg("error", prefixAndLineNum) +
-      theme.fg("muted", anchorAndSep) +
-      theme.fg("error", content)
-    );
-  }
-  if (prefix === "+") {
-    return (
-      theme.fg("success", prefixAndLineNum) +
-      theme.fg("muted", anchorAndSep) +
-      theme.fg("success", content)
-    );
-  }
-  return (
-    theme.fg("dim", prefixAndLineNum) +
-    theme.fg("muted", anchorAndSep) +
-    theme.fg("dim", content)
-  );
-}
 function colorDiffLines(
   lines: string[],
   theme: { fg: (token: string, text: string) => string },
 ): string[] {
-  return lines.map((line) => colorDiffLine(line, theme));
+  return lines.map((line) => {
+    if (line.startsWith("+") && !line.startsWith("+++")) {
+      return theme.fg("success", line);
+    }
+    if (line.startsWith("-") && !line.startsWith("---")) {
+      return theme.fg("error", line);
+    }
+    return theme.fg("dim", line);
+  });
 }
 function formatPreviewDiff(
   diff: string,
@@ -263,7 +217,7 @@ function formatPreviewDiff(
 ): string {
   const lines = diff.split("\n");
   const maxLines = expanded ? 40 : 16;
-  const shown = lines.slice(0, maxLines).map((line) => colorDiffLine(line, theme));
+  const shown = colorDiffLines(lines.slice(0, maxLines), theme);
 
   if (lines.length > maxLines) {
     shown.push(theme.fg("muted", `... ${lines.length - maxLines} more diff lines`));
@@ -275,7 +229,7 @@ function formatResultDiff(
   diff: string,
   theme: { fg: (token: string, text: string) => string },
 ): string {
-  return diff.split("\n").map((line) => colorDiffLine(line, theme)).join("\n");
+  return colorDiffLines(diff.split("\n"), theme).join("\n");
 }
 function getRenderedEditTextContent(
   result: { content?: Array<{ type: string; text?: string }> },

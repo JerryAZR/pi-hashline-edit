@@ -5,4 +5,3 @@ Use this when an `edit` call corrupted a file and you want to revert it immediat
 Limitations:
 - Only the most recent edit can be undone. A second `undo` will fail.
 - Undo is only available within 3 turns of the edit. After that, use `read` and `edit` to fix the file.
-- Undo state does not survive session switches, reloads, or restarts.

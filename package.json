@@ -1,6 +1,6 @@
 {
   "name": "@jerryan/pi-hashline-edit",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "Fork of pi-hashline-edit with trimmed schema, unified diff, and extra safety guardrails.",
   "repository": {
     "type": "git",

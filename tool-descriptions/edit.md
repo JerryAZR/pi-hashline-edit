@@ -19,5 +19,5 @@ Example:
 ] }
 
 Rules:
-- Do not guess, shift, or construct anchors. Copy them from the most recent `read` or diff output of this file.
+- Do not guess or construct anchors. Copy them from the most recent `read` or diff output of this file.
 - Do not emit overlapping or adjacent edits — merge them into one.
