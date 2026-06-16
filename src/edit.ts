@@ -33,6 +33,8 @@ import { setLastEdit } from "./undo";
 import { getReadSnapshot } from "./read-snapshot";
 import { threeWayMerge } from "./merge";
 import { partitionExact, fuzzyMatch } from "./fuzzy-match";
+import { colorDiffLines } from "./edit-diff-render";
+import type { DiffTheme } from "./edit-diff-render";
 
 const editEntrySchema = Type.Object(
   {
@@ -203,31 +205,17 @@ function getRenderablePreviewInput(args: unknown): EditRequestParams | null {
   return request.edits.length > 0 ? request : null;
 }
 
-function colorDiffLines(
-  lines: string[],
-  theme: { fg: (token: string, text: string) => string },
-): string[] {
-  return lines.map((line) => {
-    if (line.startsWith("+") && !line.startsWith("+++")) {
-      return theme.fg("success", line);
-    }
-    if (line.startsWith("-") && !line.startsWith("---")) {
-      return theme.fg("error", line);
-    }
-    return theme.fg("dim", line);
-  });
-}
 function formatPreviewDiff(
   diff: string,
   expanded: boolean,
-  theme: { fg: (token: string, text: string) => string },
+  theme: DiffTheme,
 ): string {
-  const lines = diff.split("\n");
+  const allLines = diff.split("\n");
   const maxLines = expanded ? 40 : 16;
-  const shown = colorDiffLines(lines.slice(0, maxLines), theme);
+  const shown = colorDiffLines(allLines.slice(0, maxLines), theme);
 
-  if (lines.length > maxLines) {
-    shown.push(theme.fg("muted", `... ${lines.length - maxLines} more diff lines`));
+  if (allLines.length > maxLines) {
+    shown.push(theme.fg("muted", `... ${allLines.length - maxLines} more diff lines`));
   }
   return shown.join("\n");
 }
@@ -257,7 +245,7 @@ function buildAppliedChangedResultText(
   details: HashlineEditToolDetails | undefined,
   preview: EditPreview | undefined,
   expanded: boolean,
-  theme: { fg: (token: string, text: string) => string },
+  theme: DiffTheme,
 ): string | undefined {
   const previewDiff = preview && !("error" in preview) ? preview.diff : undefined;
   const sections: string[] = [];
@@ -297,9 +285,8 @@ function formatEditCall(
   args: EditRequestParams | undefined,
   state: EditRenderState,
   expanded: boolean,
-  theme: {
+  theme: DiffTheme & {
     bold: (text: string) => string;
-    fg: (token: string, text: string) => string;
   },
 ): string {
   const path = args?.path;

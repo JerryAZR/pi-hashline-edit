@@ -125,6 +125,7 @@ describe("computeEditPreview", () => {
       const theme = {
         bold: (text: string) => text,
         fg: (_token: string, text: string) => text,
+        inverse: (text: string) => text,
       };
       const state: Record<string, unknown> = {};
 

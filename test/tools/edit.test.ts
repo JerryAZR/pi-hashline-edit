@@ -139,6 +139,7 @@ describe("registerEditTool", () => {
         {
           bold: (text: string) => text,
           fg: (token: string, text: string) => `[${token}]${text}[/${token}]`,
+          inverse: (text: string) => `[inverse]${text}[/inverse]`,
         },
         {
           args: editArgs,
