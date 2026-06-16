@@ -150,22 +150,6 @@ function formatInsertCall(
       : theme.fg("toolOutput", "...");
   let text = `${theme.fg("toolTitle", theme.bold("insert"))} ${pathDisplay}`;
 
-  if (args?.edits.length) {
-    const fragments = args.edits.map((e) => {
-      const direction = e.direction ?? "after";
-      const anchor = String(e.anchor ?? "?");
-      const lineCount = Array.isArray(e.lines) ? e.lines.length : 0;
-      return `insert ${direction} ${anchor} (${lineCount} line${lineCount !== 1 ? "s" : ""})`;
-    });
-    text += `\n${fragments.join("\n")}`;
-  }
-
-  if (state.preview) {
-    if ("error" in state.preview) {
-      text += `\n\n${theme.fg("error", state.preview.error)}`;
-    }
-  }
-
   return text;
 }
 

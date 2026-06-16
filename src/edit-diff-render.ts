@@ -34,17 +34,19 @@ function parseDiffLine(line: string): ParsedLine | null {
   }
 
   // Extract number from the metadata portion
-  const metaFull = line.slice(1, sepIdx); // "12#AB" or "12   "
+  // Extract the full padded line number from the metadata portion
+  const metaFull = line.slice(1, sepIdx); // e.g. " 9#AB" or "12   "
   const digitsMatch = metaFull.match(/\d+/);
   if (!digitsMatch) return null;
 
+  // lineNum includes left-padding so column alignment is preserved
   const digits = digitsMatch[0];
-  const lineNumStart = metaFull.indexOf(digits);
-  const lineNumEnd = lineNumStart + digits.length;
-  const meta = metaFull.slice(lineNumEnd) + CONTENT_SEP; // "#AB│" or "   │"
+  const digitsStart = metaFull.indexOf(digits);
+  const lineNum = metaFull.slice(0, digitsStart + digits.length); // " 9" or "12"
+  const meta = metaFull.slice(lineNum.length) + CONTENT_SEP; // "#AB│" or "   │"
   const content = line.slice(sepIdx + CONTENT_SEP.length);
 
-  return { prefix, lineNum: digits, meta, content };
+  return { prefix, lineNum, meta, content };
 }
 
 /**
