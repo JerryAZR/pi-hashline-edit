@@ -91,6 +91,20 @@ Each entry inserts new lines relative to a single anchor line:
 
 Unlike `edit` (which replaces a range), `insert` only adds content. All existing lines stay exactly as they are. The same stale-anchor safety and atomic-write guarantees apply.
 
+### `grep` — hashline-backed search
+
+Returns matching lines with `LINE#HASH│` anchors (same format as `read`), so results can be used directly with `edit` or `insert` without an intermediate read. Respects `.gitignore` by default.
+
+Parameters:
+- `pattern` (required) — regex or literal search pattern
+- `path` — directory or file to search (default: project root)
+- `glob` — file filter, e.g. `*.ts` or `**/*.spec.ts`
+- `ignoreCase` — case-insensitive mode
+- `literal` — treat pattern as a literal string
+- `context` — lines of context before/after each match
+- `limit` — maximum matches (default 100)
+
+Matches are grouped by file and formatted with `LINE#HASH│` anchors. Context lines also receive hashes, so surrounding lines can be used as edit anchors too. Output is truncated to 100 matches or 50KB.
 ### Chained edits
 
 After a successful edit, the response contains a unified diff where context and added lines carry fresh `LINE#HASH` anchors. These can be used directly in the next `edit` call on the same file without a full re-read, provided the next edit targets the same or nearby lines. For distant changes, use `read` first.
@@ -113,8 +127,7 @@ Each edit result shows a unified diff with hashline-formatted lines:
 
 ## Design Decisions
 
-- **Stale anchors fail.** A hash mismatch means the file has changed since the last `read`. The error includes a snippet with fresh `LINE#HASH` references for the affected lines for immediate retry.
-- **No fallback relocation.** Mismatched anchors are never silently relocated to a "close enough" line. This trades convenience for correctness.
+- **Multi-tier stale‑anchor resolution.** When anchors don't match the live file, the tool tries three strategies in order: (1) exact match — some edits may still be valid against current content; (2) fuzzy relocation — if the target content shifted by ±1 line (single-line edits) or ±2 lines (multi-line), the range is silently corrected with a `[RELOCATED]` warning; (3) snapshot merge — if the anchors match the most recent `read` snapshot but not the live file, a 3‑way merge rebases the edits. Any edit that survives all three tiers is applied; any that fails rejects the entire request with `[E_STALE_ANCHOR]`.
 - **Strict patch content.** If `lines` contains `LINE#HASH│` display prefixes or diff `+`/`-` markers, the edit is rejected with `[E_INVALID_PATCH]`. The model must send literal file content; the runtime does not silently strip accidental prefixes.
 - **Full-file deletion guardrail.** Edits that would empty a file with more than 50 lines are rejected with `[E_WOULD_EMPTY]`. Small files show the full diff normally; large deletions are almost always mistakes.
 - **Atomic writes.** Files are written via temp-file-then-rename to avoid corruption from interrupted writes. Symlink chains are resolved so the target file is updated without replacing the symlink. Hard-linked files are updated in place to preserve the shared inode. File permissions are preserved across atomic renames.

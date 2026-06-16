@@ -177,13 +177,14 @@ Expected: The file is restored to its pre-edit state. The response contains a di
 Call `undo` a second time immediately after Test 14.
 Expected: `[E_NO_UNDO]` — the undo slot is consumed after the first successful revert.
 
-### 16. 3-way merge fallback
+### 16. 3-way merge fallback (deep shift)
 
-Read `test-file.ts` and note the anchor for `console.log("see ya");`. Use the bash tool to prepend a line at the very top of the file (e.g., `// header`). This shifts all line numbers down by one.
+Read `test-file.ts` and note the anchor for `console.log("see ya");`. Use the bash tool to insert **three lines** at the very top of the file (e.g., `// header1`, `// header2`, `// header3`). This shifts all line numbers down by three — beyond the ±1 fuzzy window.
 
-Now attempt an edit on `console.log("see ya");` using the **old anchors** (which now point to shifted lines).
+Now attempt an edit on `console.log("see ya");` using the **old anchors**.
 
-Expected: The edit succeeds with a `[MERGED]` warning. The file contains both your edit change AND the prepended header. The tool detected stale anchors, fell back to the snapshot, rebased the edit, and applied it cleanly.
+Expected: The edit succeeds with a `[MERGED]` warning. The file contains both your edit change AND the prepended headers. The tool detected stale anchors, fuzzy matching couldn't relocate (shift exceeds ±1), fell back to the snapshot, and applied via 3-way merge.
+
 
 ### 17. Raw read has no anchors
 
@@ -223,6 +224,21 @@ Afterward, all three lines should appear in the file as separate lines.
 Pick any line and remove it from the file in a single edit. Do not replace it with a blank line — the line should be gone.
 
 ---
+
+## Grep Tool
+
+### 23. Basic search with anchors
+
+Search `test-file.ts` for `console.log`. Verify the results contain `LINE#HASH│` anchors. The anchors should match the same file's `read` output — check that the hash for one of the matched lines matches what `read` produces for the same line.
+
+### 24. Grep with context lines
+
+Search `test-file.ts` for `goodbye` with `context: 1`. Verify you see the matching line plus one line before and one line after — all with hashline anchors. The line before and after should NOT extend beyond the context boundary.
+
+### 25. Grep then edit
+
+Search `test-file.ts` for `console.log("goodbye")`. Copy one of the `LINE#HASH` anchors directly from the grep output and use it in an `edit` call to change `goodbye` to `farewell`. Do NOT `read` the file first. The edit should succeed with valid anchors from grep.
+
 
 ## Cleanup
 
