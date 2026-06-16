@@ -9,7 +9,7 @@
 
 export type Anchor = { line: number; hash: string; textHint?: string };
 export type HashlineEdit = {
-  op: "replace";
+  op: "replace" | "append" | "prepend";
   pos: Anchor;
   end?: Anchor;
   lines: string[];
@@ -302,7 +302,7 @@ export function hashlineParseText(edit: string[] | string | null): string[] {
  */
 export function resolveEditAnchors(edits: HashlineToolEdit[]): HashlineEdit[] {
   return edits.map((edit) => ({
-    op: "replace",
+    op: edit.op,
     pos: parseAnchorRef(edit.pos),
     ...(edit.end ? { end: parseAnchorRef(edit.end) } : {}),
     lines: hashlineParseText(edit.lines ?? null),
@@ -313,7 +313,7 @@ export function resolveEditAnchors(edits: HashlineToolEdit[]): HashlineEdit[] {
 
 /** Schema-level edit as received from the tool layer (pos/end are tag strings, lines may be string|null). */
 export type HashlineToolEdit = {
-  op: "replace";
+  op: "replace" | "append" | "prepend";
   pos: string;
   end?: string;
   lines?: string[] | string | null;
@@ -400,6 +400,7 @@ export type EditSpan = {
   start: number;
   end: number;
   replacement: string;
+  op: "replace" | "append" | "prepend";
 };
 
 export type SpanResolution =
@@ -422,6 +423,42 @@ export function resolveEditSpans(
     const startLine = edit.pos.line;
     const endLine = edit.end?.line ?? edit.pos.line;
     const originalLines = file.lines.slice(startLine - 1, endLine);
+
+    // Append/prepend: insert pure content, no deletion
+    if (edit.op === "append") {
+      let start: number;
+      if (edit.pos.line < file.lines.length) {
+        start = file.lineStarts[edit.pos.line]!; // right after anchor line's \n
+      } else {
+        start = file.content.length;
+      }
+      const replacement = edit.pos.line < file.lines.length
+        ? edit.lines.join("\n") + "\n"
+        : (file.content.endsWith("\n") ? "" : "\n") + edit.lines.join("\n");
+      spans.push({
+        index,
+        label: describeEdit(edit),
+        start,
+        end: start,
+        replacement,
+        op: "append",
+      });
+      continue;
+    }
+
+    if (edit.op === "prepend") {
+      const start = file.lineStarts[edit.pos.line - 1]!;
+      const replacement = edit.lines.join("\n") + "\n";
+      spans.push({
+        index,
+        label: describeEdit(edit),
+        start,
+        end: start,
+        replacement,
+        op: "prepend",
+      });
+      continue;
+    }
 
     // Noop detection
     if (
@@ -459,6 +496,7 @@ export function resolveEditSpans(
         start: file.lineStarts[startLine - 1]!,
         end: file.lineStarts[endLine - 1]! + file.lines[endLine - 1]!.length,
         replacement: edit.lines.join("\n"),
+        op: "replace",
       };
     } else if (startLine === 1 && endLine === file.lines.length) {
       span = {
@@ -467,6 +505,7 @@ export function resolveEditSpans(
         start: 0,
         end: file.content.length,
         replacement: "",
+        op: "replace",
       };
     } else if (endLine < file.lines.length) {
       span = {
@@ -475,6 +514,7 @@ export function resolveEditSpans(
         start: file.lineStarts[startLine - 1]!,
         end: file.lineStarts[endLine]!,
         replacement: "",
+        op: "replace",
       };
     } else {
       span = {
@@ -483,6 +523,7 @@ export function resolveEditSpans(
         start: Math.max(0, file.lineStarts[startLine - 1]! - 1),
         end: file.lineStarts[endLine - 1]! + file.lines[endLine - 1]!.length,
         replacement: "",
+        op: "replace",
       };
     }
 

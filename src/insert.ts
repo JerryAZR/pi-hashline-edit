@@ -4,12 +4,8 @@ import { withFileMutationQueue } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { constants } from "fs";
 import { readFileSync } from "fs";
-import { access as fsAccess } from "fs/promises";
 import {
-  detectLineEnding,
-  normalizeToLF,
   restoreLineEndings,
-  stripBom,
 } from "./edit-diff";
 import { resolveMutationTargetPath, writeFileAtomically } from "./fs-write";
 import {
@@ -22,49 +18,55 @@ import {
   type HashlineEdit,
   formatMismatchError,
   ANCHOR_SEP,
-  CONTENT_SEP,
 } from "./hashline";
-import { loadFileKindAndText } from "./file-kind";
 import { resolveToCwd } from "./path-utils";
 import { throwIfAborted } from "./runtime";
 import { getFileSnapshot } from "./snapshot";
 import { buildChangedResponse, buildNoopResponse } from "./edit-response";
 import { setLastEdit } from "./undo";
+import { partitionExact, fuzzyMatch } from "./fuzzy-match";
 import { getReadSnapshot } from "./read-snapshot";
 import { threeWayMerge } from "./merge";
-import { partitionExact, fuzzyMatch } from "./fuzzy-match";
 import { colorDiffLines } from "./edit-diff-render";
 import type { DiffTheme } from "./edit-diff-render";
+import { resolveEditTarget } from "./edit";
 
-const editEntrySchema = Type.Object(
+// ─── Schema ─────────────────────────────────────────────────────────────
+
+const insertEntrySchema = Type.Object(
   {
-    range: Type.Tuple([Type.String(), Type.String()], {
+    anchor: Type.String({
       description:
-        `LINE${ANCHOR_SEP}HASH anchor pair [start, end] copied from a recent \`read\` or diff output. Use the same anchor twice for single-line: ["42${ANCHOR_SEP}A4", "42${ANCHOR_SEP}A4"].`,
+        `LINE${ANCHOR_SEP}HASH anchor copied from a recent \`read\` output (e.g. "42${ANCHOR_SEP}A4"). The insert target.`,
+    }),
+    direction: Type.Enum({ after: "after", before: "before" }, {
+      description: 'Insert direction: "after" or "before" the anchor line.',
     }),
     lines: Type.Array(Type.String(), {
-      description: "New content lines. Use [] to delete.",
+      description: "Lines to insert.",
     }),
   },
   { additionalProperties: false },
 );
-export const hashlineEditToolSchema = Type.Object(
+
+export const insertToolSchema = Type.Object(
   {
     path: Type.String({ description: "path" }),
-    edits: Type.Array(editEntrySchema, {
-      description: `Edits to apply to $path. Each edit replaces the range [start, end] with lines. Use the same anchor twice for single-line; use [] to delete.`,
+    edits: Type.Array(insertEntrySchema, {
+      description: "Insert operations to apply.",
     }),
   },
   { additionalProperties: false },
 );
 
+// ─── Types ──────────────────────────────────────────────────────────────
 
-type EditRequestParams = {
+type InsertRequestParams = {
   path: string;
   edits: Record<string, unknown>[];
 };
 
-type EditMetrics = {
+type InsertMetrics = {
   edits_attempted: number;
   edits_noop: number;
   warnings: number;
@@ -73,218 +75,70 @@ type EditMetrics = {
   removed_lines?: number;
 };
 
-type HashlineEditToolDetails = {
+type InsertToolDetails = {
   diff: string;
   warnings?: string[];
   snapshotId?: string;
   classification?: "noop";
-  metrics?: EditMetrics;
+  metrics?: InsertMetrics;
   package: { name: string; version: string };
 };
 
-const EDIT_DESC = readFileSync(
-  new URL("../tool-descriptions/edit.md", import.meta.url),
+const INSERT_DESC = readFileSync(
+  new URL("../tool-descriptions/insert.md", import.meta.url),
   "utf-8",
 ).trim();
 
-const EDIT_PROMPT_SNIPPET = readFileSync(
-  new URL("../tool-descriptions/edit-snippet.md", import.meta.url),
-  "utf-8",
-).trim();
+// ─── Normalization ──────────────────────────────────────────────────────
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-// Safety net for environments where AJV validation is disabled.
-// Field-type and schema validation are AJV's responsibility;
-// only prevent crashes from missing required top-level fields.
-// Path existence is checked in execute() once CWD is available.
-export function assertEditRequest(request: unknown): asserts request is EditRequestParams {
+export function assertInsertRequest(request: unknown): asserts request is InsertRequestParams {
   if (!isRecord(request)) {
-    throw new Error("Edit request must be an object.");
+    throw new Error("Insert request must be an object.");
   }
   if (typeof request.path !== "string" || request.path.length === 0) {
-    throw new Error('Edit request requires a non-empty "path" string.');
+    throw new Error('Insert request requires a non-empty "path" string.');
   }
   if (!Array.isArray(request.edits) || request.edits.length === 0) {
-    throw new Error('Edit request requires a non-empty "edits" array.');
+    throw new Error('Insert request requires a non-empty "edits" array.');
   }
 }
 
-export function normalizeEditItems(edits: Record<string, unknown>[]): HashlineToolEdit[] {
+function normalizeInsertItems(edits: Record<string, unknown>[]): HashlineToolEdit[] {
   return edits.map((edit) => {
-    const [pos, end] = (edit.range as [string, string]) || ["", ""];
-    return { op: "replace", pos, end, lines: (edit.lines as string[]) || [] };
+    const anchor = (edit.anchor as string) || "";
+    const direction = (edit.direction as string) || "after";
+    const op = direction === "before" ? "prepend" as const : "append" as const;
+    return { op, pos: anchor, lines: (edit.lines as string[]) || [] };
   });
 }
 
-export type EditTargetResult =
-  | { ok: false; error: string; code?: string }
-  | {
-      ok: true;
-      normalized: string;
-      bom: string;
-      ending: "\r\n" | "\n";
-    };
-
-export async function resolveEditTarget(
-  absolutePath: string,
-  path: string,
-  accessMode: number,
-): Promise<EditTargetResult> {
-  try {
-    await fsAccess(absolutePath, accessMode);
-  } catch (error: unknown) {
-    const code = (error as NodeJS.ErrnoException).code;
-    if (code === "ENOENT") {
-      return { ok: false, error: `File not found: ${path}` };
-    }
-    if (code === "EACCES" || code === "EPERM") {
-      const action = accessMode & constants.W_OK ? "writable" : "readable";
-      return { ok: false, error: `File is not ${action}: ${path}` };
-    }
-    return { ok: false, error: `Cannot access file: ${path}` };
-  }
-
-  const file = await loadFileKindAndText(absolutePath);
-  if (file.kind === "directory") {
-    return {
-      ok: false,
-      error: `Path is a directory: ${path}. Use ls to inspect directories.`,
-    };
-  }
-  if (file.kind === "image") {
-    return {
-      ok: false,
-      error: `Path is an image file: ${path}. Hashline edit only supports text files.`,
-    };
-  }
-  if (file.kind === "binary") {
-    return {
-      ok: false,
-      error: `Path is a binary file: ${path} (${file.description}). Hashline edit only supports text files.`,
-    };
-  }
-
-  const { bom, text: content } = stripBom(file.text);
-  const normalized = normalizeToLF(content);
-  if (normalized.length === 0) {
-    return {
-      ok: false,
-      code: "E_EMPTY_FILE",
-      error: `File is empty: ${path}. The edit tool requires anchors from a read output, which an empty file cannot provide. Use the write tool to create initial content in an empty file.`,
-    };
-  }
-
-  return {
-    ok: true,
-    normalized,
-    bom,
-    ending: detectLineEnding(content),
-  };
-}
-
+// ─── Render ─────────────────────────────────────────────────────────────
 
 type EditPreview = { diff: string } | { error: string };
-type EditRenderState = {
+type InsertRenderState = {
   argsKey?: string;
   preview?: EditPreview;
   previewGeneration?: number;
 };
 
-function getRenderablePreviewInput(args: unknown): EditRequestParams | null {
+function getRenderablePreviewInput(args: unknown): InsertRequestParams | null {
   if (!isRecord(args) || typeof args.path !== "string") {
     return null;
   }
-
-  const request: EditRequestParams = {
+  const request: InsertRequestParams = {
     path: args.path,
     edits: Array.isArray(args.edits) ? args.edits : [],
   };
   return request.edits.length > 0 ? request : null;
 }
 
-function formatPreviewDiff(
-  diff: string,
-  expanded: boolean,
-  theme: DiffTheme,
-): string {
-  const allLines = diff.split("\n");
-  const maxLines = expanded ? 40 : 16;
-  const shown = colorDiffLines(allLines.slice(0, maxLines), theme);
-
-  if (allLines.length > maxLines) {
-    shown.push(theme.fg("muted", `... ${allLines.length - maxLines} more diff lines`));
-  }
-  return shown.join("\n");
-}
-
-function getRenderedEditTextContent(
-  result: { content?: Array<{ type: string; text?: string }> },
-): string | undefined {
-  const textContent = result.content?.find(
-    (entry): entry is { type: "text"; text: string } =>
-      entry.type === "text" && typeof entry.text === "string",
-  );
-  return textContent?.text;
-}
-
-function isAppliedChangedResult(
-  details: HashlineEditToolDetails | undefined,
-): boolean {
-  const metrics = details?.metrics;
-  return (
-    metrics?.classification === "applied" &&
-    metrics.added_lines !== undefined &&
-    metrics.removed_lines !== undefined
-  );
-}
-
-function buildAppliedChangedResultText(
-  details: HashlineEditToolDetails | undefined,
-  preview: EditPreview | undefined,
-  expanded: boolean,
-  theme: DiffTheme,
-): string | undefined {
-  const previewDiff = preview && !("error" in preview) ? preview.diff : undefined;
-  const sections: string[] = [];
-
-  if (details?.diff && details.diff !== previewDiff) {
-    const diffLines = details.diff.split("\n");
-    const maxLines = expanded ? Infinity : 16;
-    const shown = diffLines.slice(0, maxLines);
-    const diffText = colorDiffLines(shown, theme).join("\n");
-
-    if (diffLines.length > maxLines) {
-      sections.push(diffText + `\n${theme.fg("muted", `... ${diffLines.length - maxLines} more diff lines`)}`);
-    } else {
-      sections.push(diffText);
-    }
-  }
-
-  if (details?.metrics?.added_lines !== undefined) {
-    const added = details.metrics.added_lines ?? 0;
-    const removed = details.metrics.removed_lines ?? 0;
-    const parts: string[] = [];
-    if (added) parts.push(`${added} insertion${added !== 1 ? "s" : ""}(+)`);
-    if (removed) parts.push(`${removed} deletion${removed !== 1 ? "s" : ""}(-)`);
-    if (parts.length) {
-      sections.push(theme.fg("accent", parts.join(", ")));
-    }
-  }
-
-  if (details?.warnings?.length) {
-    sections.push(`Warnings:\n${details.warnings.join("\n")}`);
-  }
-
-  return sections.length > 0 ? sections.join("\n\n") : undefined;
-}
-
-function formatEditCall(
-  args: EditRequestParams | undefined,
-  state: EditRenderState,
-  expanded: boolean,
+function formatInsertCall(
+  args: InsertRequestParams | undefined,
+  state: InsertRenderState,
   theme: DiffTheme & {
     bold: (text: string) => string;
   },
@@ -294,37 +148,41 @@ function formatEditCall(
     typeof path === "string" && path.length > 0
       ? theme.fg("accent", path)
       : theme.fg("toolOutput", "...");
-  let text = `${theme.fg("toolTitle", theme.bold("edit"))} ${pathDisplay}`;
+  let text = `${theme.fg("toolTitle", theme.bold("insert"))} ${pathDisplay}`;
 
-  if (!state.preview) {
-    return text;
+  if (args?.edits.length) {
+    const fragments = args.edits.map((e) => {
+      const direction = e.direction ?? "after";
+      const anchor = String(e.anchor ?? "?");
+      const lineCount = Array.isArray(e.lines) ? e.lines.length : 0;
+      return `insert ${direction} ${anchor} (${lineCount} line${lineCount !== 1 ? "s" : ""})`;
+    });
+    text += `\n${fragments.join("\n")}`;
   }
 
-  if ("error" in state.preview) {
-    text += `\n\n${theme.fg("error", state.preview.error)}`;
-    return text;
+  if (state.preview) {
+    if ("error" in state.preview) {
+      text += `\n\n${theme.fg("error", state.preview.error)}`;
+    }
   }
 
-  if (state.preview.diff) {
-    text += `\n\n${formatPreviewDiff(state.preview.diff, expanded, theme)}`;
-  }
   return text;
 }
 
-export async function computeEditPreview(
+export async function computeInsertPreview(
   request: unknown,
   cwd: string,
 ): Promise<EditPreview> {
   try {
-    assertEditRequest(request);
+    assertInsertRequest(request);
   } catch (error: unknown) {
     return { error: error instanceof Error ? error.message : String(error) };
   }
 
-  const params = request as EditRequestParams;
+  const params = request as InsertRequestParams;
   const path = params.path;
   const absolutePath = resolveToCwd(path, cwd);
-  const toolEdits = normalizeEditItems(params.edits);
+  const toolEdits = normalizeInsertItems(params.edits);
 
   const target = await resolveEditTarget(absolutePath, path, constants.R_OK);
   if (!target.ok) {
@@ -333,28 +191,26 @@ export async function computeEditPreview(
 
   const lines: string[] = [];
   for (const edit of toolEdits) {
-    const end = edit.end ?? edit.pos;
-    lines.push(`  ${edit.pos} → ${end}`);
+    const direction = edit.op === "prepend" ? "before" : "after";
+    lines.push(`  insert ${direction} ${edit.pos}`);
   }
 
-  return { diff: `Editing ${toolEdits.length} block(s):\n${lines.join("\n")}` };
+  return { diff: `Inserting ${toolEdits.length} block(s):\n${lines.join("\n")}` };
 }
 
-type EditToolDefinition = ToolDefinition<
-  typeof hashlineEditToolSchema,
-  HashlineEditToolDetails,
-  EditRenderState
+// ─── Tool definition ────────────────────────────────────────────────────
+
+type InsertToolDefinition = ToolDefinition<
+  typeof insertToolSchema,
+  InsertToolDetails,
+  InsertRenderState
 > & { renderShell?: "default" | "self" };
 
-const editToolDefinition: EditToolDefinition = {
-  name: "edit",
-  label: "Edit",
-  description: EDIT_DESC,
-  parameters: hashlineEditToolSchema,
-  promptSnippet: EDIT_PROMPT_SNIPPET,
-  // Force the default tool shell (Box with pending/success/error background) so
-  // we don't inherit renderShell: "self" from the built-in edit tool of the
-  // same name, which would drop the shared background color block.
+const insertToolDefinition: InsertToolDefinition = {
+  name: "insert",
+  label: "Insert",
+  description: INSERT_DESC,
+  parameters: insertToolSchema,
   renderShell: "default",
   renderCall(args, theme, context) {
     const previewInput = getRenderablePreviewInput(args);
@@ -373,7 +229,7 @@ const editToolDefinition: EditToolDefinition = {
         context.state.preview = undefined;
         const previewGeneration = (context.state.previewGeneration ?? 0) + 1;
         context.state.previewGeneration = previewGeneration;
-        computeEditPreview(previewInput, context.cwd)
+        computeInsertPreview(previewInput, context.cwd)
           .then((preview) => {
             if (
               context.state.argsKey === argsKey &&
@@ -398,11 +254,10 @@ const editToolDefinition: EditToolDefinition = {
     }
     const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
     text.setText(
-      formatEditCall(
+      formatInsertCall(
         getRenderablePreviewInput(args) ?? undefined,
-        context.state as EditRenderState,
-        context.expanded,
-        theme,
+        context.state as InsertRenderState,
+        theme as DiffTheme & { bold: (text: string) => string },
       ),
     );
     return text;
@@ -411,69 +266,71 @@ const editToolDefinition: EditToolDefinition = {
   renderResult(result, { isPartial }, theme, context) {
     if (isPartial) {
       const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
-      text.setText(theme.fg("warning", "Editing..."));
+      text.setText(theme.fg("warning", "Inserting..."));
       return text;
     }
 
     const typedResult = result as {
       content?: Array<{ type: string; text?: string }>;
-      details?: HashlineEditToolDetails;
+      details?: InsertToolDetails;
     };
-    const renderedText = getRenderedEditTextContent(typedResult);
-
-    const renderState = context.state as EditRenderState | undefined;
-    const previewBeforeResult = renderState?.preview;
-    if (renderState) {
-      renderState.preview = undefined;
-      renderState.previewGeneration = (renderState.previewGeneration ?? 0) + 1;
-    }
 
     if (context.isError) {
-      if (!renderedText) {
-        return new Text("", 0, 0);
-      }
-      const text = context.lastComponent instanceof Text
-        ? context.lastComponent
-        : new Text("", 0, 0);
-      text.setText(`\n${theme.fg("error", renderedText)}`);
-      return text;
-    }
-
-    if (isAppliedChangedResult(typedResult.details)) {
-      const appliedChangedText = buildAppliedChangedResultText(
-        typedResult.details,
-        previewBeforeResult,
-        context.expanded,
-        theme,
+      const textContent = typedResult.content?.find(
+        (entry): entry is { type: "text"; text: string } =>
+          entry.type === "text" && typeof entry.text === "string",
       );
-      if (!appliedChangedText) {
-        return new Text("", 0, 0);
-      }
+      if (!textContent) return new Text("", 0, 0);
       const text = context.lastComponent instanceof Text
         ? context.lastComponent
         : new Text("", 0, 0);
-      text.setText(appliedChangedText);
+      text.setText(`\n${theme.fg("error", textContent.text)}`);
       return text;
     }
 
-    if (!renderedText) {
-      return new Text("", 0, 0);
+    const details = typedResult.details;
+    const metrics = details?.metrics;
+    if (metrics?.classification === "applied" && details?.diff) {
+      const diffLines = details.diff.split("\n");
+      const maxLines = context.expanded ? Infinity : 16;
+      const shown = diffLines.slice(0, maxLines);
+      const diffText = colorDiffLines(shown, theme as DiffTheme).join("\n");
+
+      const sections: string[] = [];
+      if (diffLines.length > maxLines) {
+        sections.push(diffText + `\n${theme.fg("muted", `... ${diffLines.length - maxLines} more diff lines`)}`);
+      } else {
+        sections.push(diffText);
+      }
+      if (metrics.added_lines !== undefined || metrics.removed_lines !== undefined) {
+        const parts: string[] = [];
+        if (metrics.added_lines) parts.push(`${metrics.added_lines} insertion${metrics.added_lines !== 1 ? "s" : ""}(+)`);
+        if (metrics.removed_lines) parts.push(`${metrics.removed_lines} removal${metrics.removed_lines !== 1 ? "s" : ""}(-)`);
+        if (parts.length) sections.push(theme.fg("accent", parts.join(", ")));
+      }
+      if (details.warnings?.length) {
+        sections.push(`Warnings:\n${details.warnings.join("\n")}`);
+      }
+
+      if (sections.length) {
+        const text = context.lastComponent instanceof Text
+          ? context.lastComponent
+          : new Text("", 0, 0);
+        text.setText(sections.join("\n\n"));
+        return text;
+      }
     }
 
-    const text = context.lastComponent instanceof Text
-      ? context.lastComponent
-      : new Text("", 0, 0);
-    text.setText(renderedText);
-    return text;
+    return new Text("", 0, 0);
   },
 
   async execute(_toolCallId, params, signal, _onUpdate, ctx) {
-    assertEditRequest(params);
+    assertInsertRequest(params);
 
-    const path = (params as EditRequestParams).path;
+    const path = (params as InsertRequestParams).path;
     const absolutePath = resolveToCwd(path, ctx.cwd);
-    const toolEdits = normalizeEditItems(
-      (params as EditRequestParams).edits,
+    const toolEdits = normalizeInsertItems(
+      (params as InsertRequestParams).edits,
     );
 
     const mutationTargetPath = await resolveMutationTargetPath(absolutePath);
@@ -508,7 +365,7 @@ const editToolDefinition: EditToolDefinition = {
           let allWarnings: string[] = [];
           let fuzzyEdits: HashlineEdit[] = [];
 
-          // Tier 2: fuzzy match against current (needs snapshot for content comparison)
+          // Tier 2: fuzzy match against current
           if (remaining.length > 0 && snapshot) {
             const fuzzyResult = fuzzyMatch(remaining, currentFile, snapshot.file);
             fuzzyEdits = fuzzyResult.matched;
@@ -516,7 +373,7 @@ const editToolDefinition: EditToolDefinition = {
             remaining = fuzzyResult.unmatched;
           }
 
-          // Fuzzy resolved all remaining — apply exact + fuzzy to current (no merge)
+          // Fuzzy resolved all remaining
           if (remaining.length === 0) {
             const currentEdits = [...exactResult.matched, ...fuzzyEdits];
             const spanResult = resolveEditSpans(currentFile, currentEdits);
@@ -586,7 +443,6 @@ const editToolDefinition: EditToolDefinition = {
             throw new Error(formatMismatchError(mismatches, currentFile.lines, retryLines));
           }
         } else {
-          // Exhaustiveness: if validateAnchors adds a new error kind, fail loud
           throw new Error(`[E_INTERNAL] Unhandled validation kind: ${(validation as any).kind}`);
         }
       } else {
@@ -601,11 +457,6 @@ const editToolDefinition: EditToolDefinition = {
       }
 
       const originalLineCount = originalNormalized.split("\n").length - (originalNormalized.endsWith("\n") ? 1 : 0);
-      if (result.length === 0 && originalLineCount > 50) {
-        throw new Error(
-          "[E_WOULD_EMPTY] This edit would delete the entire file. The edit tool does not allow full-file deletion for files with more than 50 lines. If you truly intend to clear the file, use the write tool to overwrite it with an empty string.",
-        );
-      }
       const editsAttempted = toolEdits.length;
 
       if (originalNormalized === result) {
@@ -640,6 +491,6 @@ const editToolDefinition: EditToolDefinition = {
   },
 };
 
-export function registerEditTool(pi: ExtensionAPI): void {
-  pi.registerTool(editToolDefinition);
+export function registerInsertTool(pi: ExtensionAPI): void {
+  pi.registerTool(insertToolDefinition);
 }
