@@ -109,8 +109,8 @@ describe("computeEditPreview", () => {
         edits: [{ range: [betaRef, betaRef], lines: ["BBB"] }],
       };
 
-      // Import registerEditTool to set up the tool with its render methods
-      const { registerEditTool } = await import("../../src/edit");
+      // Import registerReplaceTool to set up the tool with its render methods
+      const { registerReplaceTool } = await import("../../src/edit");
       const tools = new Map<string, any>();
       const pi = {
         registerTool(tool: any) {
@@ -118,8 +118,8 @@ describe("computeEditPreview", () => {
         },
         on() {},
       };
-      registerEditTool(pi as any);
-      const tool = tools.get("edit");
+      registerReplaceTool(pi as any);
+      const tool = tools.get("replace");
       if (!tool) throw new Error("Tool not registered: edit");
 
       const theme = {

@@ -379,7 +379,7 @@ describe("file kind guards in tools", () => {
       async ({ cwd }) => {
         const { pi, getTool } = makeFakePiRegistry();
         register(pi);
-        const editTool = getTool("edit");
+        const editTool = getTool("replace");
 
         await expect(
           editTool.execute(

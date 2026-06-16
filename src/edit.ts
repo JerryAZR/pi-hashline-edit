@@ -294,7 +294,7 @@ function formatEditCall(
     typeof path === "string" && path.length > 0
       ? theme.fg("accent", path)
       : theme.fg("toolOutput", "...");
-  let text = `${theme.fg("toolTitle", theme.bold("edit"))} ${pathDisplay}`;
+  let text = `${theme.fg("toolTitle", theme.bold("replace"))} ${pathDisplay}`;
 
   if (!state.preview) {
     return text;
@@ -347,8 +347,8 @@ type EditToolDefinition = ToolDefinition<
 > & { renderShell?: "default" | "self" };
 
 const editToolDefinition: EditToolDefinition = {
-  name: "edit",
-  label: "Edit",
+  name: "replace",
+  label: "Replace",
   description: EDIT_DESC,
   parameters: hashlineEditToolSchema,
   promptSnippet: EDIT_PROMPT_SNIPPET,
@@ -640,6 +640,6 @@ const editToolDefinition: EditToolDefinition = {
   },
 };
 
-export function registerEditTool(pi: ExtensionAPI): void {
+export function registerReplaceTool(pi: ExtensionAPI): void {
   pi.registerTool(editToolDefinition);
 }

@@ -62,7 +62,7 @@ describe.skipIf(isRoot || isWindows)("permission errors", () => {
       try {
         const { pi, getTool } = makeFakePiRegistry();
         register(pi);
-        const editTool = getTool("edit");
+        const editTool = getTool("replace");
 
         await expect(
           editTool.execute(

@@ -37,7 +37,7 @@ describe("details.metrics surface (Phase 2 C — host-only observability)", () =
     await withTempFile("a.txt", "alpha\nbeta\ngamma\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
       register(pi);
-      const editTool = getTool("edit");
+      const editTool = getTool("replace");
       const bRef = `2#${computeLineHash(["alpha", "beta", "gamma"], 1)}`;
 
       const result = await editTool.execute(
@@ -71,7 +71,7 @@ describe("details.metrics surface (Phase 2 C — host-only observability)", () =
     await withTempFile("b.txt", "alpha\nbeta\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
       register(pi);
-      const editTool = getTool("edit");
+      const editTool = getTool("replace");
       const bRef = `2#${computeLineHash(["alpha", "beta"], 1)}`;
 
       const result = await editTool.execute(
@@ -103,7 +103,7 @@ describe("details.metrics surface (Phase 2 C — host-only observability)", () =
     await withTempFile("e.txt", "alpha\nbeta\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
       register(pi);
-      const editTool = getTool("edit");
+      const editTool = getTool("replace");
       const bRef = `2#${computeLineHash(["alpha", "beta"], 1)}`;
 
       const result = await editTool.execute(

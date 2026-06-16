@@ -13,7 +13,7 @@ describe("edit merge fallback", () => {
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");
-      const editTool = getTool("edit");
+      const editTool = getTool("replace");
 
       // 1. Read the file (stores snapshot)
       const firstRead = await readTool.execute("r1", { path: "sample.ts" }, undefined, undefined, ctx);
@@ -50,7 +50,7 @@ describe("edit merge fallback", () => {
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");
-      const editTool = getTool("edit");
+      const editTool = getTool("replace");
 
       // 1. Read using a relative path
       const firstRead = await readTool.execute("r1", { path: "sample.ts" }, undefined, undefined, ctx);
@@ -85,7 +85,7 @@ describe("edit merge fallback", () => {
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");
-      const editTool = getTool("edit");
+      const editTool = getTool("replace");
 
       // 1. Read the file (stores snapshot)
       const firstRead = await readTool.execute("r1", { path: "sample.ts" }, undefined, undefined, ctx);
@@ -120,7 +120,7 @@ describe("edit merge fallback", () => {
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");
-      const editTool = getTool("edit");
+      const editTool = getTool("replace");
 
       const firstRead = await readTool.execute("r1", { path: "sample.ts" }, undefined, undefined, ctx);
       const text = firstRead.content[0].text;
@@ -164,7 +164,7 @@ describe("edit merge fallback", () => {
         const ctx = { cwd, ui: { notify() {} } } as any;
 
         const readTool = getTool("read");
-        const editTool = getTool("edit");
+        const editTool = getTool("replace");
 
         const firstRead = await readTool.execute("r1", { path: "sample.ts" }, undefined, undefined, ctx);
         const text = firstRead.content[0].text;
@@ -205,7 +205,7 @@ describe("edit merge fallback", () => {
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");
-      const editTool = getTool("edit");
+      const editTool = getTool("replace");
 
       // 1. Read the file
       const firstRead = await readTool.execute("r1", { path: "sample.ts" }, undefined, undefined, ctx);
@@ -237,7 +237,7 @@ describe("edit merge fallback", () => {
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");
-      const editTool = getTool("edit");
+      const editTool = getTool("replace");
 
       // 1. Read the file
       const firstRead = await readTool.execute("r1", { path: "sample.ts" }, undefined, undefined, ctx);
@@ -272,7 +272,7 @@ describe("edit merge fallback", () => {
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");
-      const editTool = getTool("edit");
+      const editTool = getTool("replace");
 
       // 1. Raw read — should NOT store snapshot
       const rawRead = await readTool.execute("r1", { path: "sample.ts", raw: true }, undefined, undefined, ctx);

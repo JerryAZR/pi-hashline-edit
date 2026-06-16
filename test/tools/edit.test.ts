@@ -4,7 +4,7 @@ import Ajv from "ajv";
 import {
   assertEditRequest,
   hashlineEditToolSchema,
-  registerEditTool,
+  registerReplaceTool,
 } from "../../src/edit";
 import { computeLineHash } from "../../src/hashline";
 import { makeFakePiRegistry, withTempFile } from "../support/fixtures";
@@ -21,7 +21,7 @@ describe("assertEditRequest", () => {
 
 });
 
-describe("registerEditTool", () => {
+describe("registerReplaceTool", () => {
   it("publishes a schema that validates strict hashline payloads", () => {
     const ajv = new Ajv({ allErrors: true });
     const validate = ajv.compile(hashlineEditToolSchema as any);
@@ -74,7 +74,7 @@ describe("registerEditTool", () => {
       },
     } as any;
 
-    registerEditTool(pi);
+    registerReplaceTool(pi);
 
     expect(registered?.parameters).toEqual(hashlineEditToolSchema);
     expect(registered?.prepareArguments).toBeUndefined();
@@ -83,8 +83,8 @@ describe("registerEditTool", () => {
   it("executes strict hashline replace through the normal path", async () => {
     await withTempFile("sample.txt", "aaa\nbbb\nccc\n", async ({ cwd, path }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      registerEditTool(pi);
-      const editTool = getTool("edit");
+      registerReplaceTool(pi);
+      const editTool = getTool("replace");
 
       const result = await editTool.execute(
         "e1",
@@ -111,8 +111,8 @@ describe("registerEditTool", () => {
   it("renders details diff while keeping diff out of LLM-visible text", async () => {
     await withTempFile("sample.txt", "aaa\nbbb\nccc\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      registerEditTool(pi);
-      const editTool = getTool("edit");
+      registerReplaceTool(pi);
+      const editTool = getTool("replace");
       const editArgs = {
         path: "sample.txt",
         edits: [
@@ -164,8 +164,8 @@ describe("registerEditTool", () => {
   it("rejects edits on empty files with E_EMPTY_FILE", async () => {
     await withTempFile("empty.txt", "", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      registerEditTool(pi);
-      const editTool = getTool("edit");
+      registerReplaceTool(pi);
+      const editTool = getTool("replace");
 
       await expect(
         editTool.execute(
