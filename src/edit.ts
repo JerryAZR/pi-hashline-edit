@@ -33,8 +33,7 @@ import { setLastEdit } from "./undo";
 import { getReadSnapshot } from "./read-snapshot";
 import { threeWayMerge } from "./merge";
 import { partitionExact, fuzzyMatch } from "./fuzzy-match";
-import { colorDiffLines } from "./edit-diff-render";
-import type { DiffTheme } from "./edit-diff-render";
+import { colorDiffLines, formatDiffResult } from "./edit-diff-render";
 
 const editEntrySchema = Type.Object(
   {
@@ -208,16 +207,9 @@ function getRenderablePreviewInput(args: unknown): EditRequestParams | null {
 function formatPreviewDiff(
   diff: string,
   expanded: boolean,
-  theme: DiffTheme,
+  theme: { fg: (token: string, text: string) => string },
 ): string {
-  const allLines = diff.split("\n");
-  const maxLines = expanded ? 40 : 16;
-  const shown = colorDiffLines(allLines.slice(0, maxLines), theme);
-
-  if (allLines.length > maxLines) {
-    shown.push(theme.fg("muted", `... ${allLines.length - maxLines} more diff lines`));
-  }
-  return shown.join("\n");
+  return formatDiffResult(diff, expanded ? 40 : 16, theme);
 }
 
 function getRenderedEditTextContent(
@@ -245,22 +237,15 @@ function buildAppliedChangedResultText(
   details: HashlineEditToolDetails | undefined,
   preview: EditPreview | undefined,
   expanded: boolean,
-  theme: DiffTheme,
+  theme: { fg: (token: string, text: string) => string },
 ): string | undefined {
   const previewDiff = preview && !("error" in preview) ? preview.diff : undefined;
   const sections: string[] = [];
 
   if (details?.diff && details.diff !== previewDiff) {
-    const diffLines = details.diff.split("\n");
     const maxLines = expanded ? Infinity : 16;
-    const shown = diffLines.slice(0, maxLines);
-    const diffText = colorDiffLines(shown, theme).join("\n");
-
-    if (diffLines.length > maxLines) {
-      sections.push(diffText + `\n${theme.fg("muted", `... ${diffLines.length - maxLines} more diff lines`)}`);
-    } else {
-      sections.push(diffText);
-    }
+    const rendered = formatDiffResult(details.diff, maxLines, theme);
+    if (rendered) sections.push(rendered);
   }
 
   if (details?.metrics?.added_lines !== undefined) {
@@ -285,8 +270,9 @@ function formatEditCall(
   args: EditRequestParams | undefined,
   state: EditRenderState,
   expanded: boolean,
-  theme: DiffTheme & {
+  theme: {
     bold: (text: string) => string;
+    fg: (token: string, text: string) => string;
   },
 ): string {
   const path = args?.path;

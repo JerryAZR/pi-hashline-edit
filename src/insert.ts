@@ -27,8 +27,7 @@ import { setLastEdit } from "./undo";
 import { partitionExact, fuzzyMatch } from "./fuzzy-match";
 import { getReadSnapshot } from "./read-snapshot";
 import { threeWayMerge } from "./merge";
-import { colorDiffLines } from "./edit-diff-render";
-import type { DiffTheme } from "./edit-diff-render";
+import { formatDiffResult } from "./edit-diff-render";
 import { resolveEditTarget } from "./edit";
 
 // ─── Schema ─────────────────────────────────────────────────────────────
@@ -139,8 +138,9 @@ function getRenderablePreviewInput(args: unknown): InsertRequestParams | null {
 function formatInsertCall(
   args: InsertRequestParams | undefined,
   state: InsertRenderState,
-  theme: DiffTheme & {
+  theme: {
     bold: (text: string) => string;
+    fg: (token: string, text: string) => string;
   },
 ): string {
   const path = args?.path;
@@ -241,7 +241,7 @@ const insertToolDefinition: InsertToolDefinition = {
       formatInsertCall(
         getRenderablePreviewInput(args) ?? undefined,
         context.state as InsertRenderState,
-        theme as DiffTheme & { bold: (text: string) => string },
+        theme as { bold: (text: string) => string; fg: (token: string, text: string) => string },
       ),
     );
     return text;
@@ -275,17 +275,12 @@ const insertToolDefinition: InsertToolDefinition = {
     const details = typedResult.details;
     const metrics = details?.metrics;
     if (metrics?.classification === "applied" && details?.diff) {
-      const diffLines = details.diff.split("\n");
       const maxLines = context.expanded ? Infinity : 16;
-      const shown = diffLines.slice(0, maxLines);
-      const diffText = colorDiffLines(shown, theme as DiffTheme).join("\n");
+      const rendered = formatDiffResult(details.diff, maxLines, theme);
 
       const sections: string[] = [];
-      if (diffLines.length > maxLines) {
-        sections.push(diffText + `\n${theme.fg("muted", `... ${diffLines.length - maxLines} more diff lines`)}`);
-      } else {
-        sections.push(diffText);
-      }
+      if (rendered) sections.push(rendered);
+
       if (metrics.added_lines !== undefined || metrics.removed_lines !== undefined) {
         const parts: string[] = [];
         if (metrics.added_lines) parts.push(`${metrics.added_lines} insertion${metrics.added_lines !== 1 ? "s" : ""}(+)`);
