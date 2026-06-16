@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildHashlineFile, validateAnchors, resolveEditSpans, applySpans, formatMismatchError, computeLineHash, hashlineParseText } from "../../src/hashline";
+import { buildHashlineFile, validateAnchors, resolveEditSpans, applySpans, formatMismatchError, computeLineHash, computeHashFromContext, normalizeLine, hashlineParseText } from "../../src/hashline";
 import type { HashlineEdit } from "../../src/hashline";
 
 function applyHashlineEdits(content: string, edits: HashlineEdit[], signal?: AbortSignal) {
@@ -71,4 +71,21 @@ describe("strict hashline contract", () => {
       /1 stale anchor: 3#[0-9A-F]+\./,
     );
   });
+
+  it("computeHashFromContext matches computeLineHash", () => {
+    const lines = ["  hello  ", "world", "  foo"];
+
+    // computeLineHash normalizes internally
+    const fromFile = computeLineHash(lines, 1);
+
+    // computeHashFromContext takes pre-normalized strings
+    const fromContext = computeHashFromContext(
+      normalizeLine(lines[0]!),
+      normalizeLine(lines[1]!),
+      normalizeLine(lines[2]!),
+    );
+
+    expect(fromContext).toBe(fromFile);
+  });
+
 });

@@ -52,21 +52,15 @@ export const CONTENT_SEP = "│";
 const FNV_OFFSET = 0x811c9dc5;
 const FNV_PRIME = 0x01000193;
 
-function normalizeLine(line: string): string {
+export function normalizeLine(line: string): string {
   return line.replace(/\r/g, "").trimEnd();
 }
 
 /**
- * Compute a context hash for line at `index` (0-based) within `fileLines`.
- * The hash incorporates the line itself plus its immediate neighbors
- * (previous and next), so distant edits do not invalidate anchors.
- * Missing neighbors (file boundaries) contribute an empty string.
+ * FNV-1a hash of prev + "\0" + curr + "\0" + next.
+ * All three strings must already be normalized (no \r, trailing whitespace trimmed).
  */
-export function computeLineHash(fileLines: readonly string[], index: number): string {
-  const prev = index > 0 ? normalizeLine(fileLines[index - 1]!) : "";
-  const curr = normalizeLine(fileLines[index]!);
-  const next = index < fileLines.length - 1 ? normalizeLine(fileLines[index + 1]!) : "";
-
+function fnvHash(prev: string, curr: string, next: string): string {
   let hash = FNV_OFFSET;
   for (let i = 0; i < prev.length; i++) {
     hash = Math.imul(hash ^ prev.charCodeAt(i), FNV_PRIME);
@@ -80,6 +74,28 @@ export function computeLineHash(fileLines: readonly string[], index: number): st
     hash = Math.imul(hash ^ next.charCodeAt(i), FNV_PRIME);
   }
   return DICT[hash & 0xff];
+}
+
+/**
+ * Compute a context hash for line at `index` (0-based) within `fileLines`.
+ * The hash incorporates the line itself plus its immediate neighbors
+ * (previous and next), so distant edits do not invalidate anchors.
+ * Missing neighbors (file boundaries) contribute an empty string.
+ */
+export function computeLineHash(fileLines: readonly string[], index: number): string {
+  const prev = index > 0 ? normalizeLine(fileLines[index - 1]!) : "";
+  const curr = normalizeLine(fileLines[index]!);
+  const next = index < fileLines.length - 1 ? normalizeLine(fileLines[index + 1]!) : "";
+  return fnvHash(prev, curr, next);
+}
+
+/**
+ * Compute a context hash from already-normalized strings.
+ * For callers that have pre-processed line text (e.g. from ripgrep output).
+ * Calls the same underlying FNV-1a as computeLineHash.
+ */
+export function computeHashFromContext(prev: string, curr: string, next: string): string {
+  return fnvHash(prev, curr, next);
 }
 
 export function buildHashlineFile(content: string): HashlineFile {
