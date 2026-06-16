@@ -1,8 +1,8 @@
-Patch a UTF-8 text file using `LINE#HASH` anchors copied verbatim from `read`.
+Replace content in a UTF-8 text file using `LINE#HASH` anchors copied verbatim from `read`. Existing content in the range is removed; only the new `lines` remain.
 
 Submit one `edit` call per file. All operations go in a single `edits` array; anchors must come from the same fresh source — the most recent `read` or diff output of a successful `edit` on this file.
 
-Each edit entry replaces an inclusive anchor range:
+Each edit entry drops the current anchor range and replaces it with `lines`:
 ```json
 { "range": [startAnchor, endAnchor], "lines": [...] }
 ```
