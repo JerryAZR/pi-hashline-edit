@@ -37,7 +37,9 @@ import { colorDiffLines, formatDiffResult } from "./edit-diff-render";
 
 const editEntrySchema = Type.Object(
   {
-    range: Type.Tuple([Type.String(), Type.String()], {
+    range: Type.Array(Type.String(), {
+      minItems: 2,
+      maxItems: 2,
       description:
         `LINE${ANCHOR_SEP}HASH anchor pair [start, end] copied from a recent \`read\` or diff output. Use the same anchor twice for single-line: ["42${ANCHOR_SEP}A4", "42${ANCHOR_SEP}A4"].`,
     }),
