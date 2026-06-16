@@ -12,7 +12,7 @@ Inspired by [oh-my-pi](https://github.com/can1357/oh-my-pi).
 
 This is a fork of the original [pi-hashline-edit](https://github.com/RimuruW/pi-hashline-edit). The core protocol (hash-anchored reads, stale-anchor rejection, atomic writes) is unchanged from upstream. Key differences:
 
-- **Single edit shape.** One entry type: `{ range: [start, end], lines: [...] }`. No `op` field, no `append`/`prepend`/`replace_text` ops, no `after`/`before`. The tuple enforces explicit endpoint anchors, eliminating the common "forgot `end`" failure mode.
+- **Split tool design.** Insertion and replacement are separate tools (`insert` and `edit`) rather than optional `op` fields on a single tool. Each operation has a clear set of required fields — the model picks a tool and fills in everything, never asks "do I need field X for operation Y?".
 - **Standard hex hash alphabet.** `0-9 A-F` instead of `ZPMQVRWSNKTXJBYH`. Hex pairs are more likely to be single tokens.
 - **Symmetric boundary-duplication detection.** Runtime warnings catch duplicated boundary lines on both sides of a replacement, not just trailing.
 - **`read` raw mode.** `raw: true` returns plain text without `LINE#HASH│` anchors, for reads that don't plan to edit.
@@ -71,6 +71,26 @@ Each edit entry replaces an inclusive anchor range:
 
 All edits in a single call validate against the same pre-edit snapshot and apply bottom-up, so line numbers stay consistent across operations.
 
+### `insert` — anchor-based insertion
+
+Each entry inserts new lines relative to a single anchor line:
+
+```json
+{
+  "path": "src/main.ts",
+  "edits": [
+    { "anchor": "5#A3", "direction": "after", "lines": ["import { foo } from './lib';"] },
+    { "anchor": "1#B2", "direction": "before", "lines": ["#!/usr/bin/env node"] }
+  ]
+}
+```
+
+- `anchor` — a LINE#HASH anchor from a recent `read`. The anchor line is preserved — `lines` go after or before it.
+- `direction` — `"after"` or `"before"`.
+- `lines` — the new content to insert (string array). Do not include the anchor line's content.
+
+Unlike `edit` (which replaces a range), `insert` only adds content. All existing lines stay exactly as they are. The same stale-anchor safety and atomic-write guarantees apply.
+
 ### Chained edits
 
 After a successful edit, the response contains a unified diff where context and added lines carry fresh `LINE#HASH` anchors. These can be used directly in the next `edit` call on the same file without a full re-read, provided the next edit targets the same or nearby lines. For distant changes, use `read` first.
@@ -100,6 +120,7 @@ Each edit result shows a unified diff with hashline-formatted lines:
 - **Atomic writes.** Files are written via temp-file-then-rename to avoid corruption from interrupted writes. Symlink chains are resolved so the target file is updated without replacing the symlink. Hard-linked files are updated in place to preserve the shared inode. File permissions are preserved across atomic renames.
 - **Per-file mutation queue.** Edits queue by the canonical write target, so concurrent edits through different symlink paths still serialize onto the same underlying file.
 - **Schema-delegated validation.** Field-type and schema validation are the responsibility of pi's AJV layer. The extension's runtime guard only prevents crashes from missing required top-level fields.
+- **Split tools over optional fields.** Upstream and the original oh-my-pi protocol pack `append`/`prepend`/`replace` into a single tool via an `op` field with optional `after`/`before`/`range` parameters. We split them into separate tools (`edit` for replacement, `insert` for insertion). Agents struggle with optional fields — they use them randomly or forget them. With separate tools, each operation has only required fields. The model decides "do I want to insert or replace?" then fills in everything. No branching on optional parameters.
 
 ## Hashing
 
