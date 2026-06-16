@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.11.0
+
+### Added
+- **Insert tool.** `{ anchor, direction: "after"|"before", lines }` inserts new content between existing lines without touching them. The anchor line is preserved — no need to repeat its content.
+- **Append/prepend internal ops.** The hashline engine now supports `"append"` and `"prepend"` alongside `"replace"`. `resolveEditSpans` computes zero-width insertion spans; `applySpans` handles all three identically. External schemas diverge (edit = range, insert = anchor+direction) but the internal data path converges to the same span-based pipeline.
+- **Intra-line diff highlighting (opt-in).** `src/edit-diff-render.ts` exports `renderDiff()` which uses `Diff.diffWords` and `theme.inverse()` to highlight changed tokens within 1:1 line-modification pairs. A 50% ratio guard skips full-line rewrites to avoid inverse-everything noise. Not called by the default rendering path — available for opt-in enhancement.
+- **Shared `formatDiffResult()`.** Both `edit` and `insert` result cards render diffs through a single function: truncation, coloring, and "... N more diff lines" notice.
+
+### Changed
+- **Edit prompt emphasizes replacement.** Snippet and description now lead with "Replace content" rather than "Edit/Patch". Line 1 states "existing content is removed; only the new lines remain".
+- **Simplified insert tool card.** Removed per-edit anchor details from the render call; matches the edit card's path-only style.
+- **Line number alignment preserved.** `parseDiffLine` now carries the full padded line number (e.g. `" 9"` not `"9"`) so single- and multi-digit line numbers align in diff output.
+- **Renderer unified.** Removed duplicate diff rendering from `insert.ts`; both tools share `colorDiffLines` and `formatDiffResult` from `edit-diff-render.ts`.
+
+### Fixed
+- **Insert description clarification.** Last paragraph now states the anchor line is preserved and warns against accidentally repeating its content.
+
 ## 0.10.1
 
 ### Changed
