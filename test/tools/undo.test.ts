@@ -24,7 +24,7 @@ describe("undo tool", () => {
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");
-      const editTool = getTool("replace");
+      const editTool = getTool("edit");
       const undoTool = getTool("undo");
 
       const firstRead = await readTool.execute("r1", { path: "sample.ts" }, undefined, undefined, ctx);
@@ -58,7 +58,7 @@ describe("undo tool", () => {
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");
-      const editTool = getTool("replace");
+      const editTool = getTool("edit");
       const undoTool = getTool("undo");
 
       const firstRead = await readTool.execute("r1", { path: "sample.ts" }, undefined, undefined, ctx);
@@ -89,7 +89,7 @@ describe("undo tool", () => {
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");
-      const editTool = getTool("replace");
+      const editTool = getTool("edit");
       const undoTool = getTool("undo");
 
       const firstRead = await readTool.execute("r1", { path: "sample.ts" }, undefined, undefined, ctx);
@@ -121,7 +121,7 @@ describe("undo tool", () => {
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");
-      const editTool = getTool("replace");
+      const editTool = getTool("edit");
       const undoTool = getTool("undo");
 
       const firstRead = await readTool.execute("r1", { path: "sample.ts" }, undefined, undefined, ctx);

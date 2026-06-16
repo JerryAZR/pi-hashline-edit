@@ -13,7 +13,7 @@ describe("edit tool text shape (token budget)", () => {
     await withTempFile("sample.ts", "aaa\nbbb\nccc\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
       register(pi);
-      const editTool = getTool("replace");
+      const editTool = getTool("edit");
       const bRef = `2#${computeLineHash(["aaa", "bbb", "ccc"], 1)}`;
 
       const result = await editTool.execute(
@@ -53,7 +53,7 @@ describe("edit tool text shape (token budget)", () => {
     await withTempFile("sample.ts", "aaa\nbbb\nccc\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
       register(pi);
-      const editTool = getTool("replace");
+      const editTool = getTool("edit");
       const bRef = `2#${computeLineHash(["aaa", "bbb", "ccc"], 1)}`;
 
       const result = await editTool.execute(
@@ -83,7 +83,7 @@ describe("edit tool text shape (token budget)", () => {
     await withTempFile("sample.txt", "aaa\nbbb\nccc\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
       register(pi);
-      const editTool = getTool("replace");
+      const editTool = getTool("edit");
       const bRef = `2#${computeLineHash(["aaa", "bbb", "ccc"], 1)}`;
 
       const result = await editTool.execute(
@@ -113,7 +113,7 @@ describe("edit tool text shape (token budget)", () => {
     await withTempFile("sample.txt", "aaa\nbbb\nccc\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
       register(pi);
-      const editTool = getTool("replace");
+      const editTool = getTool("edit");
       const bRef = `2#${computeLineHash(["aaa", "bbb", "ccc"], 1)}`;
 
       const result = await editTool.execute(
@@ -142,7 +142,7 @@ describe("edit tool text shape (token budget)", () => {
     await withTempFile("sample.txt", "only\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
       register(pi);
-      const editTool = getTool("replace");
+      const editTool = getTool("edit");
       const oRef = `1#${computeLineHash(["only"], 0)}`;
 
       const result = await editTool.execute(
@@ -172,7 +172,7 @@ describe("edit tool text shape (token budget)", () => {
     await withTempFile("big.txt", `${lines}\n`, async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
       register(pi);
-      const editTool = getTool("replace");
+      const editTool = getTool("edit");
       const fileLines = Array.from({ length: 55 }, (_, i) => `line ${i + 1}`);
       const firstRef = `1#${computeLineHash(fileLines, 0)}`;
       const lastRef = `55#${computeLineHash(fileLines, 54)}`;
@@ -202,7 +202,7 @@ describe("edit tool text shape (token budget)", () => {
     await withTempFile("sample.txt", `before\n${longLine}\nafter\n`, async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
       register(pi);
-      const editTool = getTool("replace");
+      const editTool = getTool("edit");
       const lRef = `2#${computeLineHash(["before", longLine, "after"], 1)}`;
 
       const result = await editTool.execute(

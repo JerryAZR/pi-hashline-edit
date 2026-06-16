@@ -33,7 +33,7 @@ describe("snapshotId surface (details-only after W2)", () => {
     await withTempFile("sample.txt", "alpha\nbeta\n", async ({ cwd, path }) => {
       const { pi, getTool } = makeFakePiRegistry();
       register(pi);
-      const editTool = getTool("replace");
+      const editTool = getTool("edit");
       const bRef = `2#${computeLineHash(["alpha", "beta"], 1)}`;
 
       await editTool.execute(
@@ -59,7 +59,7 @@ describe("snapshotId surface (details-only after W2)", () => {
       async ({ cwd, path }) => {
         const { pi, getTool } = makeFakePiRegistry();
         register(pi);
-        const editTool = getTool("replace");
+        const editTool = getTool("edit");
         const fRef = `4#${computeLineHash(["one", "two", "three", "four", "five"], 3)}`;
 
         // External, unrelated change: line 2 mutated, line 4 still "four".
@@ -94,7 +94,7 @@ describe("snapshotId surface (details-only after W2)", () => {
     await withTempFile("sample.txt", "alpha\nbeta\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
       register(pi);
-      const editTool = getTool("replace");
+      const editTool = getTool("edit");
       const bRef = `2#${computeLineHash(["alpha", "beta"], 1)}`;
 
       const result = await editTool.execute(
@@ -126,7 +126,7 @@ describe("snapshotId surface (details-only after W2)", () => {
       async ({ cwd, path }) => {
         const { pi, getTool } = makeFakePiRegistry();
         register(pi);
-        const editTool = getTool("replace");
+        const editTool = getTool("edit");
 
         // External change: rewrite the line we are about to target.
         await writeFile(path, "one\nTWO!\nthree\n", "utf-8");
@@ -167,7 +167,7 @@ describe("snapshotId surface (details-only after W2)", () => {
       async ({ cwd, path }) => {
         const { pi, getTool } = makeFakePiRegistry();
         register(pi);
-        const editTool = getTool("replace");
+        const editTool = getTool("edit");
 
         await writeFile(path, "one\nTWO!\nthree\n", "utf-8");
 

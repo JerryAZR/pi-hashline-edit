@@ -13,6 +13,6 @@ describe("extension registration", () => {
 
     register(pi);
 
-    expect(toolNames.sort()).toEqual(["insert", "read", "replace", "undo"]);
+    expect(toolNames.sort()).toEqual(["edit", "insert", "read", "undo"]);
   });
 });

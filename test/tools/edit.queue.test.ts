@@ -23,7 +23,7 @@ vi.mock("../../src/read", async (importOriginal) => {
 });
 
 import { withFileMutationQueue } from "@earendil-works/pi-coding-agent";
-import { registerReplaceTool } from "../../src/edit";
+import { registerEditTool } from "../../src/edit";
 
 function makeFakeRegistry() {
   const tools = new Map<string, any>();
@@ -33,8 +33,8 @@ function makeFakeRegistry() {
     },
     on() {},
   } as any;
-  registerReplaceTool(pi);
-  const tool = tools.get("replace");
+  registerEditTool(pi);
+  const tool = tools.get("edit");
   if (!tool) throw new Error("Tool not registered: edit");
   return { tool };
 }
