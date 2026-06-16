@@ -6,5 +6,5 @@ Each entry is an insertion operation:
 - `direction`: `"after"` to insert after the anchor line, or `"before"` to insert before it.
 - `lines`: the new content to insert (each array entry is one line).
 
-The anchor alone is sufficient; the file is read internally and the anchor
-validated. No need to repeat or know the current content of the anchor line.
+The anchor line itself is preserved — `lines` are inserted after or before it.
+Do not include the anchor line's content in `lines` unless intentional duplication.
