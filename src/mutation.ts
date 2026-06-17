@@ -91,9 +91,9 @@ export async function applyMutation(options: MutationOptions): Promise<MutationR
         let allWarnings: string[] = [];
         let fuzzyEdits: HashlineEdit[] = [];
 
-        // Tier 2: fuzzy match against current (needs snapshot for content comparison)
-        if (remaining.length > 0 && snapshot) {
-          const fuzzyResult = fuzzyMatch(remaining, currentFile, snapshot.file);
+        // Tier 2: hash-based fuzzy match — search ±N lines for anchor hash
+        if (remaining.length > 0) {
+          const fuzzyResult = fuzzyMatch(remaining, currentFile);
           fuzzyEdits = fuzzyResult.matched;
           allWarnings.push(...fuzzyResult.warnings);
           remaining = fuzzyResult.unmatched;

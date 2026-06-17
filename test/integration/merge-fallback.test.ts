@@ -93,11 +93,11 @@ describe("edit merge fallback", () => {
         .split("\n")
         .find((line: string) => line.includes("│e"))!
         .split("│")[0]!;
+      // 2. Insert 1 line at top — shifts e by +1, within fuzzy window (±1)
+      // Hash is unchanged (same neighbors), fuzzy catches with [RELOCATED].
+      writeFileSync(path, "X\na\nb\nc\nd\ne\nf\ng\nh\ni\nj\n", "utf-8");
 
-      // 2. External: insert 3 lines at top — exceeds fuzzy MAX_OFFSET=2
-      writeFileSync(path, "X\nY\nZ\na\nb\nc\nd\ne\nf\ng\nh\ni\nj\n", "utf-8");
-
-      // 3. Edit with old anchor should succeed via 3-way merge
+      // 3. Edit with old anchor succeeds via hash-based fuzzy relocation
       const editResult = await editTool.execute(
         "e1",
         { path: "sample.ts", edits: [{ range: [eRef, eRef], lines: ["E"] }] },
@@ -106,9 +106,9 @@ describe("edit merge fallback", () => {
         ctx,
       );
 
-      expect(editResult.content[0].text).toContain("[MERGED]");
+      expect(editResult.content[0].text).toContain("[RELOCATED]");
       const finalContent = readFileSync(path, "utf-8");
-      expect(finalContent).toBe("X\nY\nZ\na\nb\nc\nd\nE\nf\ng\nh\ni\nj\n");
+      expect(finalContent).toBe("X\na\nb\nc\nd\nE\nf\ng\nh\ni\nj\n");
     });
   });
 
@@ -152,9 +152,9 @@ describe("edit merge fallback", () => {
   });
 
   it("splits edits across exact, fuzzy, and snapshot (merge) tiers", async () => {
-    // 15-line file, external deletes lines 5-7 (e,f,g) → shift of -3 exceeds fuzzy
-    // Line 2 (b) → exact; line 4 (d) → fuzzy (hash changed, content at same pos);
-    // line 12 (l) → snapshot (shifted to 9, beyond ±2)
+    // 15-line file, delete e,f,g (lines 5-7). Line 2 (b) → exact,
+    // line 12 (l) → hash unchanged but shift -3 > fuzzy window → merge.
+    // Line 4 (d) → hash changed (neighbor broken) → rejected.
     await withTempFile(
       "sample.ts",
       "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\n",
@@ -169,7 +169,6 @@ describe("edit merge fallback", () => {
         const firstRead = await readTool.execute("r1", { path: "sample.ts" }, undefined, undefined, ctx);
         const text = firstRead.content[0].text;
         const bRef = text.split("\n").find((l: string) => l.includes("│b"))!.split("│")[0]!;
-        const dRef = text.split("\n").find((l: string) => l.includes("│d"))!.split("│")[0]!;
         const lRef = text.split("\n").find((l: string) => l.includes("│l"))!.split("│")[0]!;
 
         // External: delete lines 5-7 (e,f,g)
@@ -181,8 +180,7 @@ describe("edit merge fallback", () => {
             path: "sample.ts",
             edits: [
               { range: [bRef, bRef], lines: ["B"] },  // exact
-              { range: [dRef, dRef], lines: ["D"] },  // fuzzy (content at same line, hash changed)
-              { range: [lRef, lRef], lines: ["L"] },  // snapshot (shifted beyond ±2)
+              { range: [lRef, lRef], lines: ["L"] },  // merge (shifted to 9, same context)
             ],
           },
           undefined,
@@ -190,14 +188,12 @@ describe("edit merge fallback", () => {
           ctx,
         );
 
-        expect(editResult.content[0].text).toContain("[RELOCATED]");
         expect(editResult.content[0].text).toContain("[MERGED]");
         const finalContent = readFileSync(path, "utf-8");
-        expect(finalContent).toBe("a\nB\nc\nD\nh\ni\nj\nk\nL\nm\nn\no\n");
+        expect(finalContent).toBe("a\nB\nc\nd\nh\ni\nj\nk\nL\nm\nn\no\n");
       },
     );
   });
-
   it("falls back to hard reject when snapshot does not match either", async () => {
     await withTempFile("sample.ts", "alpha\nbeta\n", async ({ cwd, path }) => {
       const { pi, getTool } = makeFakePiRegistry();

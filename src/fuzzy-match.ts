@@ -1,15 +1,15 @@
 /**
- * Fuzzy anchor relocation.
+ * Hash-based anchor relocation.
  *
- * When anchors are stale against the live file, we search ±N lines for the
- * original range content and shift both endpoints together. Only accepts a
- * single unique match; rejects on zero or multiple matches.
+ * When anchors are stale against the live file, search ±OFFSET lines for
+ * the anchor's hash. Both endpoints shift by the same offset. Only accepts
+ * a single unique match; rejects on zero or multiple matches.
+ *
+ * No content comparison — purely hash-based.
  */
-
 import {
   type HashlineFile,
   type HashlineEdit,
-  computeLineHash,
 } from "./hashline";
 
 const OFFSET_SINGLE = 1;
@@ -59,17 +59,15 @@ export function partitionExact(
 }
 
 /**
- * Try to relocate stale edits by searching ±MAX_OFFSET lines in the live
- * file for the original range content (obtained from the snapshot). Both
- * endpoints shift by the same offset. Only accepts a single unique match.
+ * Relocate stale edits by searching ±maxOffset lines in the live file for
+ * the anchor's hash. Both endpoints shift by the same offset. Only accepts
+ * a single unique match; rejects on zero or multiple matches.
  *
- * Relocated anchors receive new hashes computed from the current file's
- * context at the new position.
+ * The anchor hash stays unchanged — we found it at the new position.
  */
 export function fuzzyMatch(
   edits: HashlineEdit[],
   currentFile: HashlineFile,
-  snapshotFile: HashlineFile,
 ): MatchResult {
   const matched: HashlineEdit[] = [];
   const unmatched: HashlineEdit[] = [];
@@ -80,21 +78,10 @@ export function fuzzyMatch(
     const startLine = edit.pos.line;
     const endLine = edit.end?.line ?? startLine;
 
-    // Original content this edit expects (from snapshot)
-    if (
-      startLine < 1 ||
-      startLine > snapshotFile.lines.length ||
-      endLine > snapshotFile.lines.length
-    ) {
-      unmatched.push(edit);
-      continue;
-    }
-    const originalContent = snapshotFile.lines.slice(startLine - 1, endLine);
-
     const isSingle = edit.end === undefined || edit.end.line === edit.pos.line;
     const maxOffset = isSingle ? OFFSET_SINGLE : OFFSET_MULTI;
 
-    // Search current file for the exact same content within ±maxOffset
+    // Search current file for the hash within ±maxOffset
     let bestOffset: number | null = null;
 
     for (let offset = -maxOffset; offset <= maxOffset; offset++) {
@@ -103,25 +90,18 @@ export function fuzzyMatch(
 
       if (newStart < 1 || newEnd > currentFile.lines.length) continue;
 
-      const candidate = currentFile.lines.slice(newStart - 1, newEnd);
-      if (originalContent.length !== candidate.length) continue;
+      // Must match pos.hash at the new position
+      if (currentFile.lineHashes[newStart - 1] !== edit.pos.hash) continue;
 
-      let match = true;
-      for (let i = 0; i < originalContent.length; i++) {
-        if (originalContent[i] !== candidate[i]) {
-          match = false;
-          break;
-        }
-      }
+      // For range edits, end.hash must also match at the new position
+      if (edit.end && currentFile.lineHashes[newEnd - 1] !== edit.end.hash) continue;
 
-      if (match) {
-        if (bestOffset !== null) {
-          // Multiple matches — reject
-          bestOffset = null;
-          break;
-        }
-        bestOffset = offset;
+      if (bestOffset !== null) {
+        // Multiple matches — reject
+        bestOffset = null;
+        break;
       }
+      bestOffset = offset;
     }
 
     if (bestOffset === null) {
@@ -129,7 +109,7 @@ export function fuzzyMatch(
       continue;
     }
 
-    // Relocate: shift both anchors by the offset and recompute hashes
+    // Relocate: shift both anchors by the offset, hash stays the same
     const newStart = startLine + bestOffset;
     const newEnd = endLine + bestOffset;
 
@@ -137,12 +117,12 @@ export function fuzzyMatch(
       op: edit.op,
       pos: {
         line: newStart,
-        hash: computeLineHash(currentFile.lines, newStart - 1),
+        hash: edit.pos.hash,
       },
       end: edit.end
         ? {
             line: newEnd,
-            hash: computeLineHash(currentFile.lines, newEnd - 1),
+            hash: edit.end.hash,
           }
         : undefined,
       lines: edit.lines,
@@ -154,7 +134,7 @@ export function fuzzyMatch(
 
   if (relocationCount > 0) {
     warnings.push(
-      `[RELOCATED] ${relocationCount} range(s) relocated via fuzzy matching. Please review the diff carefully.`,
+      `[RELOCATED] ${relocationCount} range(s) relocated via hash matching. Please review the diff carefully.`,
     );
   }
 
