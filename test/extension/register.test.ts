@@ -12,6 +12,7 @@ function collectTools(register: (pi: any) => void): string[] {
       toolNames.push(tool.name);
     },
     on() {},
+    events: { emit() {}, on() {} },
   };
   register(pi);
   return toolNames;

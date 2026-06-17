@@ -205,7 +205,11 @@ export function registerReadTool(pi: ExtensionAPI): void {
       throwIfAborted(signal);
       const normalized = normalizeToLF(stripBom(file.text).text);
       if (!params.raw) {
-        setReadSnapshot(absolutePath, buildHashlineFile(normalized));
+        const hf = buildHashlineFile(normalized);
+        setReadSnapshot(absolutePath, hf);
+        if (pi.events) {
+          pi.events.emit("hashline:read-snapshot", { path: absolutePath, file: hf });
+        }
       }
       const preview = formatHashlineReadPreview(normalized, {
         offset: params.offset,

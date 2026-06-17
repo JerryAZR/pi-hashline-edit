@@ -31,6 +31,7 @@ export function makeFakePiRegistry() {
         tools.set(tool.name, tool);
       },
       on() {},
+      events: { emit() {}, on() {} },
     } as any,
     getTool(name: string) {
       const tool = tools.get(name);

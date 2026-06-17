@@ -24,7 +24,7 @@ import { throwIfAborted } from "./runtime";
 import { getFileSnapshot } from "./snapshot";
 import { buildChangedResponse, buildNoopResponse } from "./edit-response";
 import { partitionExact, fuzzyMatch } from "./fuzzy-match";
-import { getReadSnapshot } from "./read-snapshot";
+import { getReadSnapshot, setReadSnapshot } from "./read-snapshot";
 import { threeWayMerge } from "./merge";
 import { formatDiffResult } from "./edit-diff-render";
 import { resolveEditTarget } from "./edit";
@@ -469,5 +469,8 @@ const insertToolDefinition: InsertToolDefinition = {
 };
 
 export function registerInsertTool(pi: ExtensionAPI): void {
+  pi.events.on("hashline:read-snapshot", (data: { path: string; file: import("./hashline").HashlineFile }) => {
+    setReadSnapshot(data.path, data.file);
+  });
   pi.registerTool(insertToolDefinition);
 }
