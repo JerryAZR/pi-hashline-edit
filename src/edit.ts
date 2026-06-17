@@ -18,6 +18,7 @@ import { loadFileKindAndText } from "./file-kind";
 import { resolveToCwd } from "./path-utils";
 import { formatDiffResult } from "./edit-diff-render";
 import { applyMutation } from "./mutation";
+import { isRecord } from "./runtime";
 
 const editEntrySchema = Type.Object(
   {
@@ -77,9 +78,6 @@ const EDIT_PROMPT_SNIPPET = readFileSync(
   "utf-8",
 ).trim();
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 // Safety net for environments where AJV validation is disabled.
 // Field-type and schema validation are AJV's responsibility;

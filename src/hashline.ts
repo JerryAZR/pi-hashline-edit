@@ -356,7 +356,7 @@ function describeEdit(edit: HashlineEdit): string {
 
 export type AnchorValidation =
   | { ok: true }
-  | { ok: false; kind: "range"; message: string };
+  | { ok: false; message: string };
 
 export function validateAnchors(
   file: HashlineFile,
@@ -366,7 +366,6 @@ export function validateAnchors(
     if (edit.end && edit.pos.line > edit.end.line) {
       return {
         ok: false,
-        kind: "range",
         message: `[E_BAD_RANGE] Range start line ${edit.pos.line} must be <= end line ${edit.end.line}`,
       };
     }
@@ -376,7 +375,6 @@ export function validateAnchors(
       if (ref.line < 1 || ref.line > file.lines.length) {
         return {
           ok: false,
-          kind: "range",
           message: `[E_RANGE_OOB] Line ${ref.line} does not exist (file has ${file.lines.length} lines)`,
         };
       }

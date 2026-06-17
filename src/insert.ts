@@ -12,6 +12,7 @@ import { formatDiffResult } from "./edit-diff-render";
 import { setReadSnapshot } from "./read-snapshot";
 import { resolveEditTarget } from "./edit";
 import { applyMutation } from "./mutation";
+import { isRecord } from "./runtime";
 
 const insertEntrySchema = Type.Object(
   {
@@ -71,9 +72,6 @@ const INSERT_DESC = readFileSync(
 
 // ─── Normalization ──────────────────────────────────────────────────────
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 export function assertInsertRequest(request: unknown): asserts request is InsertRequestParams {
   if (!isRecord(request)) {
