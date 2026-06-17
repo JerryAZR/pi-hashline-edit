@@ -20,7 +20,8 @@ const insertEntrySchema = Type.Object(
       description:
         `LINE${ANCHOR_SEP}HASH anchor copied from a recent \`read\` output (e.g. "42${ANCHOR_SEP}A4"). The insert target.`,
     }),
-    direction: Type.Enum({ after: "after", before: "before" }, {
+    direction: Type.String({
+      enum: ["after", "before"],
       description: 'Insert direction: "after" or "before" the anchor line.',
     }),
     lines: Type.Array(Type.String(), {
