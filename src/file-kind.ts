@@ -113,6 +113,7 @@ export async function loadFileKindAndText(filePath: string): Promise<LoadedFile>
   }
 }
 
+/** @internal */
 export async function classifyFileKind(filePath: string): Promise<FileKind> {
   const loaded = await loadFileKindAndText(filePath);
   switch (loaded.kind) {

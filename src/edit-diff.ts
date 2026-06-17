@@ -128,6 +128,7 @@ function collapseDiffPreviewRun(
   ];
 }
 
+/** @internal */
 export function buildCompactHashlineDiffPreview(
   diff: string,
   options: {

@@ -29,6 +29,7 @@ export function getReadSnapshot(path: string): ReadSnapshot | undefined {
   return lastReadSnapshot;
 }
 
+/** @internal */
 export function clearReadSnapshot(): void {
   lastReadSnapshot = undefined;
 }

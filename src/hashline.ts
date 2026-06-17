@@ -172,6 +172,7 @@ function diagnoseLineRef(ref: string): string {
   return `[E_BAD_REF] Invalid line reference "${trimmed || ref}". Expected "LINE${ANCHOR_SEP}HASH" (e.g. "5${ANCHOR_SEP}MQ").`;
 }
 
+/** @internal */
 export function parseLineRef(ref: string): { line: number; hash: string } {
   // Match LINE#HASH format, tolerating:
   //  - leading ">+" and whitespace (from mismatch/diff display)
@@ -573,6 +574,7 @@ const ANCHOR_MAX_OUTPUT_LINES = 12;
  * precise bounds. Returns null if the range (with context) exceeds the
  * output budget, signalling that the LLM should re-read instead.
  */
+/** @internal */
 export function computeAffectedLineRange(params: {
   firstChangedLine: number | undefined;
   lastChangedLine: number | undefined;
