@@ -1,4 +1,4 @@
-Replace content in a UTF-8 text file using `LINE#HASH` anchors copied verbatim from `read`. Existing content in the range is removed; only the new `lines` remain.
+Replace content in a UTF-8 text file using `LINE#HASH` anchors copied verbatim from `read`. The entire anchor range is deleted and only `lines` survives — if you want to keep any original lines from the range, you must copy them into `lines`.
 
 Submit one `edit` call per file. All operations go in a single `edits` array; anchors must come from the same fresh source — the most recent `read` or diff output of a successful `edit` on this file.
 
@@ -8,7 +8,7 @@ Each edit entry drops the current anchor range and replaces it with `lines`:
 ```
 - `range` — `[start, end]` pair of LINE#HASH anchors from the most recent `read` or diff output.
   Use the same anchor twice for single-line: `["42#A4", "42#A4"]`.
-- `lines` — new content replacing the range (string array). Use `[]` to delete.
+- `lines` — replacement content (string array). The range is wiped and replaced by exactly these lines. Copy any original lines you want to keep. Use `[]` to delete.
   Must be literal file content, not LINE#HASH│-prefixed output. Match indentation exactly.
 
 Example:
