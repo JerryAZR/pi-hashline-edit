@@ -46,11 +46,15 @@ Each tool is its own extension file. The package ships all of them; enable or di
 }
 ```
 
-Available extensions: `extensions/core.ts`, `extensions/insert.ts`, `extensions/undo.ts`, `extensions/grep.ts`.
+Available extensions: `extensions/core.ts`, `extensions/insert.ts`, `extensions/undo.ts`, `extensions/grep.ts`, `extensions/tool-usage.ts`.
 
 Or use `pi config` to toggle them interactively.
 
 **Rule:** either keep `core.ts` enabled, plus any add-ons, or disable everything.
+
+### Slash commands
+
+`/tool-usage` — counts tool calls in the current session and shows which of our tools have zero usage. Helps decide which add-ons to keep.
 
 ## How It Works
 
