@@ -25,35 +25,29 @@ const UNDO_DESC = readFileSync(
   "utf-8",
 ).trim();
 
-/** Maximum number of turns after which undo becomes unavailable.
- *  Allows patterns like edit -> read -> undo, but prevents undoing
- *  edits from distant conversation history. */
 const MAX_UNDO_TURNS = 3;
 
-export type LastEdit = {
+type Snapshot = {
   path: string;
-  previousContent: string;
+  content: string;
   turnIndex: number;
 };
 
-let lastEdit: LastEdit | undefined;
+let lastSnapshot: Snapshot | undefined;
 let currentTurnIndex = 0;
+const pendingSnapshots = new Map<string, Snapshot>();
 
-export function setCurrentTurn(index: number): void {
-  currentTurnIndex = index;
+function snapshotFile(absolutePath: string, path: string, turnIndex: number): Snapshot | undefined {
+  try {
+    const raw = readFileSync(absolutePath, "utf-8");
+    const { text } = stripBom(raw);
+    return { path, content: normalizeToLF(text), turnIndex };
+  } catch {
+    return undefined;
+  }
 }
 
-export function setLastEdit(entry: Omit<LastEdit, "turnIndex">): void {
-  lastEdit = { ...entry, turnIndex: currentTurnIndex };
-}
-
-export function getLastEdit(): LastEdit | undefined {
-  return lastEdit;
-}
-
-export function clearLastEdit(): void {
-  lastEdit = undefined;
-}
+// ─── Tool definition ────────────────────────────────────────────────────
 
 const undoToolSchema = Type.Object({}, { additionalProperties: false });
 
@@ -68,12 +62,8 @@ function colorDiffLines(
   theme: { fg: (token: string, text: string) => string },
 ): string[] {
   return lines.map((line) => {
-    if (line.startsWith("+") && !line.startsWith("+++")) {
-      return theme.fg("success", line);
-    }
-    if (line.startsWith("-") && !line.startsWith("---")) {
-      return theme.fg("error", line);
-    }
+    if (line.startsWith("+") && !line.startsWith("+++")) return theme.fg("success", line);
+    if (line.startsWith("-") && !line.startsWith("---")) return theme.fg("error", line);
     return theme.fg("dim", line);
   });
 }
@@ -91,21 +81,16 @@ const undoToolDefinition: ToolDefinition<
   renderCall(_args, theme, _context) {
     return new Text(
       `${theme.fg("toolTitle", "undo")} ${theme.fg("toolOutput", "revert last edit")}`,
-      0,
-      0,
+      0, 0,
     );
   },
 
   renderResult(result, { isPartial }, theme, _context) {
-    if (isPartial) {
-      return new Text(theme.fg("warning", "Undoing..."), 0, 0);
-    }
-
+    if (isPartial) return new Text(theme.fg("warning", "Undoing..."), 0, 0);
     const typedResult = result as {
       content?: Array<{ type: string; text?: string }>;
       details?: UndoToolDetails;
     };
-
     if (typedResult.details?.diff) {
       const text = colorDiffLines(
         typedResult.details.diff.split("\n"),
@@ -113,21 +98,16 @@ const undoToolDefinition: ToolDefinition<
       ).join("\n");
       return new Text(text, 0, 0);
     }
-
     const renderedText = typedResult.content?.find(
       (entry): entry is { type: "text"; text: string } =>
         entry.type === "text" && typeof entry.text === "string",
     )?.text;
-
-    if (renderedText) {
-      return new Text(theme.fg("error", renderedText), 0, 0);
-    }
-
+    if (renderedText) return new Text(theme.fg("error", renderedText), 0, 0);
     return new Text("", 0, 0);
   },
 
   async execute(_toolCallId, _params, signal, _onUpdate, ctx) {
-    const entry = lastEdit;
+    const entry = lastSnapshot;
     if (!entry) {
       throw new Error(
         "[E_NO_UNDO] No edit to undo. The undo tool only reverts the most recent hashline edit in this session.",
@@ -151,36 +131,27 @@ const undoToolDefinition: ToolDefinition<
         await fsAccess(absolutePath, constants.R_OK | constants.W_OK);
       } catch (error: unknown) {
         const code = (error as NodeJS.ErrnoException).code;
-        if (code === "ENOENT") {
-          throw new Error(`File not found: ${path}`);
-        }
-        if (code === "EACCES" || code === "EPERM") {
-          throw new Error(`File is not writable: ${path}`);
-        }
+        if (code === "ENOENT") throw new Error(`File not found: ${path}`);
+        if (code === "EACCES" || code === "EPERM") throw new Error(`File is not writable: ${path}`);
         throw new Error(`Cannot access file: ${path}`);
       }
 
       throwIfAborted(signal);
       const file = await loadFileKindAndText(absolutePath);
       if (file.kind !== "text") {
-        throw new Error(
-          `Hashline undo only supports text files. ${path} is ${file.kind}.`,
-        );
+        throw new Error(`Hashline undo only supports text files. ${path} is ${file.kind}.`);
       }
 
       throwIfAborted(signal);
       const { bom, text: currentText } = stripBom(file.text);
       const originalEnding = detectLineEnding(currentText);
       const currentNormalized = normalizeToLF(currentText);
-      const restoredContent = entry.previousContent;
+      const restoredContent = entry.content;
 
       if (currentNormalized === restoredContent) {
         return {
           content: [{ type: "text", text: "No changes needed. File already matches the pre-edit state." }],
-          details: {
-            diff: "",
-            package: PACKAGE_INFO,
-          },
+          details: { diff: "", package: PACKAGE_INFO },
         };
       }
 
@@ -190,7 +161,7 @@ const undoToolDefinition: ToolDefinition<
         bom + restoreLineEndings(restoredContent, originalEnding),
       );
 
-      clearLastEdit();
+      lastSnapshot = undefined;
       const updatedSnapshotId = (await getFileSnapshot(absolutePath)).snapshotId;
       const { diff } = generateDiffString(currentNormalized, restoredContent);
 
@@ -207,6 +178,63 @@ const undoToolDefinition: ToolDefinition<
   },
 };
 
+// ─── Registration ───────────────────────────────────────────────────────
+
+// ─── Test helpers ────────────────────────────────────────────────────────
+
+/** Set the last undo snapshot directly. For testing only. */
+export function _setLastSnapshot(path: string, content: string, turnIndex?: number): void {
+  lastSnapshot = { path, content: normalizeToLF(content), turnIndex: turnIndex ?? currentTurnIndex };
+}
+
+/** Override the current turn index. For testing only. */
+export function _setCurrentTurn(index: number): void {
+  currentTurnIndex = index;
+}
+
+/** Clear all undo state. For testing only. */
+export function _resetUndo(): void {
+  lastSnapshot = undefined;
+  currentTurnIndex = 0;
+  pendingSnapshots.clear();
+}
+
+// ─── Registration ───────────────────────────────────────────────────────
+
 export function registerUndoTool(pi: ExtensionAPI): void {
   pi.registerTool(undoToolDefinition);
+
+  // Track turn index
+  pi.on("turn_start", async (event) => {
+    currentTurnIndex = event.turnIndex;
+  });
+
+  // Snapshot file content before edit/insert mutations
+  pi.on("tool_call", async (event, ctx) => {
+    if (event.toolName !== "edit" && event.toolName !== "insert") return;
+    const path = (event.input as Record<string, unknown>)?.path;
+    if (typeof path !== "string" || !path) return;
+
+    const absolutePath = resolveToCwd(path, ctx.cwd);
+    const snap = snapshotFile(absolutePath, path, currentTurnIndex);
+    if (snap) {
+      pendingSnapshots.set(event.toolCallId, snap);
+    }
+  });
+
+  // Promote snapshot to undo target on successful mutation
+  pi.on("tool_execution_end", async (event) => {
+    if (event.toolName !== "edit" && event.toolName !== "insert") return;
+    const snap = pendingSnapshots.get(event.toolCallId);
+    if (!snap) return;
+    pendingSnapshots.delete(event.toolCallId);
+
+    if (event.isError) return;
+
+    // Check if the tool actually changed the file
+    const details = event.result?.details as Record<string, unknown> | undefined;
+    if (details?.classification === "noop") return;
+
+    lastSnapshot = snap;
+  });
 }

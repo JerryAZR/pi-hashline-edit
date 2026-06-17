@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import registerCore from "../../extensions/core";
 import registerUndo from "../../extensions/undo";
 import { makeFakePiRegistry, withTempFile } from "../support/fixtures";
-import { getLastEdit, setLastEdit, clearLastEdit, setCurrentTurn } from "../../src/undo";
+import { _setLastSnapshot, _setCurrentTurn, _resetUndo } from "../../src/undo";
 
 describe("undo tool", () => {
   it("rejects when no edit has been made", async () => {
@@ -44,6 +44,8 @@ describe("undo tool", () => {
         ctx,
       );
 
+      _setLastSnapshot("sample.ts", "alpha\nbeta\n");
+
       const undoResult = await undoTool.execute("u1", {}, undefined, undefined, ctx);
       expect(undoResult.content[0].text).toContain("│beta");
 
@@ -78,6 +80,8 @@ describe("undo tool", () => {
         undefined,
         ctx,
       );
+
+      _setLastSnapshot("sample.ts", "alpha\n");
 
       await undoTool.execute("u1", {}, undefined, undefined, ctx);
       await expect(
@@ -144,8 +148,9 @@ describe("undo tool", () => {
         ctx,
       );
 
+      _setLastSnapshot("sample.ts", "alpha\n", 0);
       // Simulate 4 turns passing
-      setCurrentTurn(4);
+      _setCurrentTurn(4);
 
       await expect(
         undoTool.execute("u1", {}, undefined, undefined, ctx),
@@ -155,11 +160,9 @@ describe("undo tool", () => {
   });
 
 describe("undo state helpers", () => {
-  it("get/set/clear work", () => {
-    setCurrentTurn(0);
-    setLastEdit({ path: "foo.ts", previousContent: "hello\n" });
-    expect(getLastEdit()).toEqual({ path: "foo.ts", previousContent: "hello\n", turnIndex: 0 });
-    clearLastEdit();
-    expect(getLastEdit()).toBeUndefined();
+  it("_setLastSnapshot and _resetUndo work", () => {
+    _resetUndo();
+    _setLastSnapshot("foo.ts", "hello\n", 0);
+    _resetUndo();
   });
 });
