@@ -220,19 +220,13 @@ export function registerUndoTool(pi: ExtensionAPI): void {
     }
   });
 
-  // Promote snapshot to undo target on successful mutation
+  // Promote snapshot to undo target — if the edit was a noop or error,
+  // undo will just say "already matches" and self-correct
   pi.on("tool_execution_end", async (event) => {
     if (event.toolName !== "edit" && event.toolName !== "insert") return;
     const snap = pendingSnapshots.get(event.toolCallId);
     if (!snap) return;
     pendingSnapshots.delete(event.toolCallId);
-
-    if (event.isError) return;
-
-    // Check if the tool actually changed the file
-    const details = event.result?.details as Record<string, unknown> | undefined;
-    if (details?.classification === "noop") return;
-
     lastSnapshot = snap;
   });
 }
