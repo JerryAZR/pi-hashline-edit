@@ -6,16 +6,14 @@ export default function (pi: ExtensionAPI): void {
     handler: async (_args, ctx) => {
       const counts = new Map<string, number>();
       let totalCalls = 0;
-      let totalDistinct = 0;
 
       for (const entry of ctx.sessionManager.getBranch()) {
-        if (
-          entry.type === "message" &&
-          (entry as any).message?.role === "toolCall"
-        ) {
-          const name = (entry as any).message.name as string | undefined;
-          if (name) {
-            counts.set(name, (counts.get(name) ?? 0) + 1);
+        if (entry.type !== "message") continue;
+        const msg = (entry as any).message;
+        if (!msg?.content || !Array.isArray(msg.content)) continue;
+        for (const block of msg.content) {
+          if (block.type === "toolCall" && block.name) {
+            counts.set(block.name, (counts.get(block.name) ?? 0) + 1);
             totalCalls++;
           }
         }
