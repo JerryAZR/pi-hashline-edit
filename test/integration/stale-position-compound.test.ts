@@ -12,13 +12,24 @@ import {
   type HashlineEdit,
   type HashlineToolEdit,
 } from "../../src/hashline";
+import { partitionExact } from "../../src/fuzzy-match";
 
 function applyHashlineEdits(content: string, edits: HashlineEdit[]) {
   const file = buildHashlineFile(content);
-  const validation = validateAnchors(file, edits);
-  if (!validation.ok) {
-    if (validation.kind === "range") throw new Error(validation.message);
-    throw new Error(formatMismatchError(validation.mismatches, file.lines, validation.retryLines));
+  const struct = validateAnchors(file, edits);
+  if (!struct.ok) throw new Error(struct.message);
+  const exact = partitionExact(edits, file);
+  if (exact.unmatched.length > 0) {
+    const mismatches = exact.unmatched.flatMap((e) => {
+      const refs = e.end ? [e.pos, e.end] : [e.pos];
+      return refs.map((r) => ({
+        line: r.line,
+        expected: r.hash,
+        actual: file.lineHashes[r.line - 1] ?? "OOB",
+      }));
+    });
+    const retryLines = new Set(mismatches.map((m) => m.line));
+    throw new Error(formatMismatchError(mismatches, file.lines, retryLines));
   }
   const spanResult = resolveEditSpans(file, edits);
   if (!spanResult.ok) throw new Error(spanResult.message);

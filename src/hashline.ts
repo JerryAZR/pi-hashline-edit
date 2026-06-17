@@ -356,16 +356,12 @@ function describeEdit(edit: HashlineEdit): string {
 
 export type AnchorValidation =
   | { ok: true }
-  | { ok: false; kind: "stale"; mismatches: HashMismatch[]; retryLines: Set<number> }
   | { ok: false; kind: "range"; message: string };
 
 export function validateAnchors(
   file: HashlineFile,
   edits: HashlineEdit[],
-): AnchorValidation {
-  const mismatches: HashMismatch[] = [];
-  const retryLines = new Set<number>();
-
+) : AnchorValidation {
   for (const edit of edits) {
     if (edit.end && edit.pos.line > edit.end.line) {
       return {
@@ -376,11 +372,7 @@ export function validateAnchors(
     }
 
     const refs = edit.end ? [edit.pos, edit.end] : [edit.pos];
-    let startOk = true;
-    let endOk = true;
-
-    for (let i = 0; i < refs.length; i++) {
-      const ref = refs[i]!;
+    for (const ref of refs) {
       if (ref.line < 1 || ref.line > file.lines.length) {
         return {
           ok: false,
@@ -388,24 +380,7 @@ export function validateAnchors(
           message: `[E_RANGE_OOB] Line ${ref.line} does not exist (file has ${file.lines.length} lines)`,
         };
       }
-      const actual = file.lineHashes[ref.line - 1]!;
-      const ok = actual === ref.hash;
-      if (!ok) {
-        mismatches.push({ line: ref.line, expected: ref.hash, actual });
-        retryLines.add(ref.line);
-      }
-      if (i === 0) startOk = ok;
-      if (i === 1) endOk = ok;
     }
-
-    if (edit.end) {
-      if (!startOk && endOk) retryLines.add(edit.end.line);
-      if (startOk && !endOk) retryLines.add(edit.pos.line);
-    }
-  }
-
-  if (mismatches.length) {
-    return { ok: false, kind: "stale", mismatches, retryLines };
   }
   return { ok: true };
 }
