@@ -126,28 +126,23 @@ describe("fuzzyMatch", () => {
   });
 
   it("rejects on multiple hash matches", () => {
-    // Two identical adjacent lines with SAME hash (same content + same neighbors).
-    // Use three identical lines so the middle one has the same hash as the outer ones
-    // within the search window.
-    const original = buildHashlineFile("a\nx\nx\nx\nc\n");
-    const current = buildHashlineFile("a\nx\nx\nx\nc\n");
+    // 4 identical lines — lines 2 and 3 both have neighbors (x, x, x),
+    // so both share the same hash. Within +-1 of line 2, both match.
+    const file = buildHashlineFile("x\nx\nx\nx\n");
+    // Line 2 and 3 share the same hash: fnv(x + "\t" + x + "\t" + x)
+    const h2 = file.lineHashes[1]!;
+    const h3 = file.lineHashes[2]!;
+    expect(h2).toBe(h3); // same neighbors, same hash
 
-    // Line 3 (middle x) has neighbors (x, x, x). Line 2 and 4 also have (x, x, x)? No.
-    // Line 2: (a, x, x). Line 3: (x, x, x). Line 4: (x, x, c). Three different.
-    // Let's use two x's where hash IS the same: the only way is identical content +
-    // identical neighbors — impossible for adjacent unless all three the same.
-    // Skip this test — two adjacent identical-content lines always have different hashes.
-    expect(original.lineHashes[1]).not.toBe(original.lineHashes[2]);
-    // The first x has different hash from second x, so exactly one match
     const edit = {
       op: "replace" as const,
-      pos: { line: 2, hash: original.lineHashes[1]! },
+      pos: { line: 2, hash: h2 },
       lines: ["X"],
     };
 
-    const result = fuzzyMatch([edit], current);
-    expect(result.matched).toHaveLength(1);
-    expect(result.unmatched).toHaveLength(0);
+    const result = fuzzyMatch([edit], file);
+    expect(result.matched).toHaveLength(0);
+    expect(result.unmatched).toHaveLength(1);
   });
 
   it("handles multi-line ranges", () => {
