@@ -613,13 +613,7 @@ const editToolDefinition: EditToolDefinition = {
       );
       const updatedSnapshotId = (await getFileSnapshot(absolutePath)).snapshotId;
 
-      if (_editPi?.events) {
-        _editPi.events.emit("hashline:edit-applied", {
-          path,
-          absolutePath,
-          beforeContent: originalNormalized,
-        });
-      }
+      emitUndoSnapshot(_editPi, path, absolutePath, originalNormalized);
 
       return buildChangedResponse({
         path,
@@ -635,6 +629,10 @@ const editToolDefinition: EditToolDefinition = {
 };
 
 let _editPi: ExtensionAPI | undefined;
+
+export function emitUndoSnapshot(pi: ExtensionAPI | undefined, path: string, absolutePath: string, beforeContent: string): void {
+  pi?.events?.emit("hashline:edit-applied", { path, absolutePath, beforeContent });
+}
 
 export function registerEditTool(pi: ExtensionAPI): void {
   _editPi = pi;

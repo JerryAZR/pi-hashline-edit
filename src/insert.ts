@@ -27,7 +27,7 @@ import { partitionExact, fuzzyMatch } from "./fuzzy-match";
 import { getReadSnapshot, setReadSnapshot } from "./read-snapshot";
 import { threeWayMerge } from "./merge";
 import { formatDiffResult } from "./edit-diff-render";
-import { resolveEditTarget } from "./edit";
+import { resolveEditTarget, emitUndoSnapshot } from "./edit";
 
 // ─── Schema ─────────────────────────────────────────────────────────────
 
@@ -455,13 +455,7 @@ const insertToolDefinition: InsertToolDefinition = {
       );
       const updatedSnapshotId = (await getFileSnapshot(absolutePath)).snapshotId;
 
-      if (_insertPi?.events) {
-        _insertPi.events.emit("hashline:edit-applied", {
-          path,
-          absolutePath,
-          beforeContent: originalNormalized,
-        });
-      }
+      emitUndoSnapshot(_insertPi, path, absolutePath, originalNormalized);
 
       return buildChangedResponse({
         path,
