@@ -19,6 +19,7 @@ import { throwIfAborted } from "./runtime";
 import { getFileSnapshot } from "./snapshot";
 import { buildChangedResponse } from "./edit-response";
 import { PACKAGE_INFO } from "./package-info";
+import { colorDiffLines } from "./edit-diff-render";
 
 const UNDO_DESC = readFileSync(
   new URL("../tool-descriptions/undo.md", import.meta.url),
@@ -46,16 +47,6 @@ type UndoToolDetails = {
   package: { name: string; version: string };
 };
 
-function colorDiffLines(
-  lines: string[],
-  theme: { fg: (token: string, text: string) => string },
-): string[] {
-  return lines.map((line) => {
-    if (line.startsWith("+") && !line.startsWith("+++")) return theme.fg("success", line);
-    if (line.startsWith("-") && !line.startsWith("---")) return theme.fg("error", line);
-    return theme.fg("dim", line);
-  });
-}
 
 const undoToolDefinition: ToolDefinition<
   typeof undoToolSchema,

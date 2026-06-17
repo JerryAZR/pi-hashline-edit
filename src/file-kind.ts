@@ -108,8 +108,6 @@ export async function loadFileKindAndText(filePath: string): Promise<LoadedFile>
     parts.push(decoder.decode());
 
     return { kind: "text", text: parts.join("") };
-
-    return { kind: "text", text: parts.join("") };
   } finally {
     await fileHandle.close();
   }

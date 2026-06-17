@@ -1,15 +1,16 @@
 # Changelog
 
-## 0.11.1
+## 0.11.2
 
 ### Changed
-- **Undo is self-contained.** The undo tool now monitors `edit`/`insert` via `tool_call` and `tool_execution_end` events rather than relying on `setLastEdit()` calls from the edit tool. Snapshots are taken before mutations and promoted on success. Failed edits don't overwrite valid snapshots.
-- **Split into individual extension files.** Each tool is its own extension (`extensions/core.ts`, `insert.ts`, `undo.ts`, `grep.ts`, `tool-usage.ts`). Users toggle via `pi config` or package filtering. No custom config code.
-- **Combined core extension.** `edit` and `read` are bundled into `extensions/core.ts` since they're always used together. Add-ons (`insert`, `undo`, `grep`) are independent.
+- **Fuzzy match is hash-based.** No more content comparison or snapshot dependency. Searches ±1 line (single) or ±2 lines (range) for the anchor's hash. Both endpoints of a range must shift together. Rejects on zero or multiple matches.
+- **`validateAnchors` is structural-only.** Checks range order and line bounds; hash validation is exclusively in the 3-tier recovery flow (`partitionExact` → fuzzy → merge). No redundant path.
+- **Single mutation path.** The old happy-path `else` branch (for all-valid anchors) is eliminated. All edits flow through the same `partitionExact` → fuzzy → merge flow — perfect anchors become a zero-unmatched pass-through.
+- **Shared mutation engine.** `src/mutation.ts` — `edit` and `insert` are now ~12-line adapters calling `applyMutation()` with their normalized edits. The 60-line duplicate mutation logic is gone.
+- **Unified cross-extension events.** `undo` and `insert` both consume `pi.events` for cross-extension data (undo snapshots, read snapshots). No lifecycle hook duplication, no session file bloat.
 
-### Added
-- `/tool-usage` slash command. Counts tool calls in the current session and highlights tools with zero usage.
-- Insert tool tests (schema validation, after/before, empty file rejection).
+### Fixed
+- **Hash-line confusion in fuzzy match.** Anchor `3#A4` (hash of `gamma = 3`, wrong line) previously matched `alpha = 1` via content-based fuzzy. Now correctly rejected — hash doesn't match at that position.
 
 
 ## 0.11.0
