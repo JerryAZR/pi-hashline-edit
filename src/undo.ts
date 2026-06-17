@@ -220,10 +220,11 @@ export function registerUndoTool(pi: ExtensionAPI): void {
     }
   });
 
-  // Promote snapshot to undo target — if the edit was a noop or error,
-  // undo will just say "already matches" and self-correct
+  // Only promote on success — a failed edit should not overwrite the
+  // snapshot from a prior successful edit
   pi.on("tool_execution_end", async (event) => {
     if (event.toolName !== "edit" && event.toolName !== "insert") return;
+    if (event.isError) return;
     const snap = pendingSnapshots.get(event.toolCallId);
     if (!snap) return;
     pendingSnapshots.delete(event.toolCallId);
