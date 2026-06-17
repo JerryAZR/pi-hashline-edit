@@ -178,8 +178,6 @@ const undoToolDefinition: ToolDefinition<
   },
 };
 
-// ─── Registration ───────────────────────────────────────────────────────
-
 // ─── Test helpers ────────────────────────────────────────────────────────
 
 /** Set the last undo snapshot directly. For testing only. */
