@@ -51,6 +51,8 @@ Available extensions: `extensions/edit.ts`, `extensions/insert.ts`, `extensions/
 
 Or use `pi config` to toggle them interactively.
 
+**Rule:** either keep `edit.ts` and `read.ts` enabled (the core), plus any add-ons, or disable everything.
+
 ## How It Works
 
 ### `read` — tagged line output
