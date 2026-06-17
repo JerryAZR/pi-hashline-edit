@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.3
+
+### Fixed
+- **Moonshot AI compatibility.** Replaced `Type.Enum({ after, before })` with `Type.String({ enum: ["after", "before"] })` in the insert tool schema. TypeBox's `anyOf`+`const` output is rejected by Moonshot's JSON schema validator.
+
 ## 0.11.2
 
 ### Changed
