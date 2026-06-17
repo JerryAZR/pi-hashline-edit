@@ -1,22 +1,41 @@
 import { describe, expect, it } from "vitest";
 import { spawnSync } from "child_process";
-import register from "../../index";
+import registerEdit from "../../extensions/edit";
+import registerInsert from "../../extensions/insert";
+import registerRead from "../../extensions/read";
+import registerUndo from "../../extensions/undo";
+import registerGrep from "../../extensions/grep";
+
+function collectTools(register: (pi: any) => void): string[] {
+  const toolNames: string[] = [];
+  const pi = {
+    registerTool(tool: { name: string }) {
+      toolNames.push(tool.name);
+    },
+    on() {},
+  };
+  register(pi);
+  return toolNames;
+}
 
 describe("extension registration", () => {
-  it("registers read/edit tools", () => {
-    const toolNames: string[] = [];
-    const pi = {
-      registerTool(tool: { name: string }) {
-        toolNames.push(tool.name);
-      },
-      on() {},
-    } as any;
+  it("edit registers 'edit'", () => {
+    expect(collectTools(registerEdit).sort()).toEqual(["edit"]);
+  });
 
-    register(pi);
+  it("insert registers 'insert'", () => {
+    expect(collectTools(registerInsert).sort()).toEqual(["insert"]);
+  });
 
-    const expected = ["edit", "read", "undo"];
+  it("read registers 'read'", () => {
+    expect(collectTools(registerRead).sort()).toEqual(["read"]);
+  });
 
-    // grep only registers if rg is available
+  it("undo registers 'undo'", () => {
+    expect(collectTools(registerUndo).sort()).toEqual(["undo"]);
+  });
+
+  it("grep registers 'grep' if rg available", () => {
     let rgOk = false;
     try {
       const r = spawnSync("rg", ["--version"], { stdio: "pipe" });
@@ -24,8 +43,8 @@ describe("extension registration", () => {
     } catch {
       // rg not on PATH
     }
-    if (rgOk) expected.push("grep");
-
-    expect(toolNames.sort()).toEqual(expected.sort());
+    if (rgOk) {
+      expect(collectTools(registerGrep).sort()).toEqual(["grep"]);
+    }
   });
 });

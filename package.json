@@ -19,7 +19,7 @@
   ],
   "license": "MIT",
   "files": [
-    "index.ts",
+    "extensions",
     "src",
     "tool-descriptions",
     "README.md",
@@ -27,7 +27,7 @@
   ],
   "pi": {
     "extensions": [
-      "./index.ts"
+      "./extensions"
     ]
   },
   "dependencies": {

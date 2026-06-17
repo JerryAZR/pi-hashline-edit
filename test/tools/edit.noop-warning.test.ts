@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFile } from "fs/promises";
-import register from "../../index";
+import registerEdit from "../../extensions/edit";
 import { computeLineHash } from "../../src/hashline";
 import { makeFakePiRegistry, withTempFile } from "../support/fixtures";
 
@@ -12,7 +12,7 @@ describe("edit tool noop + warnings", () => {
   it("returns classification noop instead of throwing on identical content", async () => {
     await withTempFile("sample.txt", "aaa\nbbb\nccc\n", async ({ cwd, path }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
       const editTool = getTool("edit");
       const bRef = `2#${computeLineHash(["aaa", "bbb", "ccc"], 1)}`;
 
@@ -41,7 +41,7 @@ describe("edit tool noop + warnings", () => {
   it("emits a boundary duplication warning without blocking the edit", async () => {
     await withTempFile("sample.txt", "aaa\nbbb\nccc\n", async ({ cwd, path }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
       const editTool = getTool("edit");
       const bRef = `2#${computeLineHash(["aaa", "bbb", "ccc"], 1)}`;
 

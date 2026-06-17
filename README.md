@@ -30,6 +30,27 @@ pi install npm:@jerryan/pi-hashline-edit
 pi install /path/to/pi-hashline-edit
 ```
 
+### Toggling individual tools
+
+Each tool is its own extension file. The package ships all of them; enable or disable individual tools via pi's built-in resource filtering:
+
+```json
+{
+  "packages": [{
+    "source": "npm:@jerryan/pi-hashline-edit",
+    "extensions": [
+      "extensions/edit.ts",
+      "extensions/read.ts",
+      "extensions/undo.ts"
+    ]
+  }]
+}
+```
+
+Available extensions: `extensions/edit.ts`, `extensions/insert.ts`, `extensions/read.ts`, `extensions/undo.ts`, `extensions/grep.ts`.
+
+Or use `pi config` to toggle them interactively.
+
 ## How It Works
 
 ### `read` — tagged line output

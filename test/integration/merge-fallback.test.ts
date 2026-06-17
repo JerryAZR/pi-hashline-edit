@@ -2,14 +2,16 @@ import { describe, expect, it } from "vitest";
 import { readFileSync, writeFileSync } from "fs";
 import { join, resolve } from "path";
 import { makeFakePiRegistry, withTempFile } from "../support/fixtures";
-import register from "../../index";
+import registerEdit from "../../extensions/edit";
+import registerRead from "../../extensions/read";
 import { _setReadSnapshotState, clearReadSnapshot } from "../../src/read-snapshot";
 
 describe("edit merge fallback", () => {
   it("rebases stale anchors via 3-way merge when snapshot matches", async () => {
     await withTempFile("sample.ts", "l1\nl2\nl3\nl4\nl5\nl6\nl7\nl8\nl9\nl10\n", async ({ cwd, path }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
+      registerRead(pi);
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");
@@ -46,7 +48,8 @@ describe("edit merge fallback", () => {
   it("finds snapshot when read uses relative and edit uses absolute path", async () => {
     await withTempFile("sample.ts", "l1\nl2\nl3\nl4\nl5\nl6\nl7\nl8\nl9\nl10\n", async ({ cwd, path }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
+      registerRead(pi);
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");
@@ -81,7 +84,8 @@ describe("edit merge fallback", () => {
   it("falls back to 3-way merge when shift exceeds fuzzy window", async () => {
     await withTempFile("sample.ts", "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\n", async ({ cwd, path }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
+      registerRead(pi);
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");
@@ -116,7 +120,8 @@ describe("edit merge fallback", () => {
     // 10-line file, external deletes line 3 (c) → lines after shift left by 1
     await withTempFile("sample.ts", "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\n", async ({ cwd, path }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
+      registerRead(pi);
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");
@@ -160,7 +165,8 @@ describe("edit merge fallback", () => {
       "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\n",
       async ({ cwd, path }) => {
         const { pi, getTool } = makeFakePiRegistry();
-        register(pi);
+        registerEdit(pi);
+        registerRead(pi);
         const ctx = { cwd, ui: { notify() {} } } as any;
 
         const readTool = getTool("read");
@@ -201,7 +207,8 @@ describe("edit merge fallback", () => {
   it("falls back to hard reject when snapshot does not match either", async () => {
     await withTempFile("sample.ts", "alpha\nbeta\n", async ({ cwd, path }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
+      registerRead(pi);
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");
@@ -233,7 +240,8 @@ describe("edit merge fallback", () => {
   it("falls back to hard reject when no snapshot exists", async () => {
     await withTempFile("sample.ts", "alpha\nbeta\n", async ({ cwd, path }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
+      registerRead(pi);
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");
@@ -268,7 +276,8 @@ describe("edit merge fallback", () => {
   it("raw reads do not populate snapshot", async () => {
     await withTempFile("sample.ts", "alpha\nbeta\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
+      registerRead(pi);
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");

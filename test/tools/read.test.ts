@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import register from "../../index";
+import registerRead from "../../extensions/read";
 import { formatHashlineRegion } from "../../src/hashline";
 import { formatHashlineReadPreview } from "../../src/read";
 import { computeLineHash } from "../../src/hashline";
@@ -135,7 +135,7 @@ describe("read tool protocol", () => {
       vi.mocked(fileKindMod.loadFileKindAndText).mockResolvedValue({ kind: "text", text: "" });
 
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerRead(pi);
       const readTool = getTool("read");
 
       const result = await readTool.execute(
@@ -157,7 +157,7 @@ describe("read tool protocol", () => {
       vi.mocked(fileKindMod.loadFileKindAndText).mockResolvedValue({ kind: "text", text: "alpha\nbeta\n" });
 
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerRead(pi);
       const readTool = getTool("read");
 
       const result = await readTool.execute(
@@ -182,7 +182,7 @@ describe("read tool protocol", () => {
       );
 
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerRead(pi);
       const readTool = getTool("read");
 
       const result = await readTool.execute(

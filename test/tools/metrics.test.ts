@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import register from "../../index";
+import registerEdit from "../../extensions/edit";
+import registerRead from "../../extensions/read";
 import { computeLineHash } from "../../src/hashline";
 import { makeFakePiRegistry, withTempFile } from "../support/fixtures";
 
@@ -12,7 +13,8 @@ describe("details.metrics surface (Phase 2 C — host-only observability)", () =
     const lines = Array.from({ length: 200 }, (_, i) => `line${i + 1}`).join("\n");
     await withTempFile("big.txt", `${lines}\n`, async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
+      registerRead(pi);
       const readTool = getTool("read");
 
       const result = await readTool.execute(
@@ -36,7 +38,8 @@ describe("details.metrics surface (Phase 2 C — host-only observability)", () =
   it("changed-mode edit reports applied classification + edits_attempted", async () => {
     await withTempFile("a.txt", "alpha\nbeta\ngamma\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
+      registerRead(pi);
       const editTool = getTool("edit");
       const bRef = `2#${computeLineHash(["alpha", "beta", "gamma"], 1)}`;
 
@@ -70,7 +73,8 @@ describe("details.metrics surface (Phase 2 C — host-only observability)", () =
   it("noop edit reports classification noop and edits_noop count", async () => {
     await withTempFile("b.txt", "alpha\nbeta\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
+      registerRead(pi);
       const editTool = getTool("edit");
       const bRef = `2#${computeLineHash(["alpha", "beta"], 1)}`;
 
@@ -102,7 +106,8 @@ describe("details.metrics surface (Phase 2 C — host-only observability)", () =
   it("metrics field never appears in user-visible text", async () => {
     await withTempFile("e.txt", "alpha\nbeta\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
+      registerRead(pi);
       const editTool = getTool("edit");
       const bRef = `2#${computeLineHash(["alpha", "beta"], 1)}`;
 

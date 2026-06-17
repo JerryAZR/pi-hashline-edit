@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import register from "../../index";
+import registerEdit from "../../extensions/edit";
+import registerRead from "../../extensions/read";
 import { makeFakePiRegistry, withTempFile } from "../support/fixtures";
 
 function extractRef(text: string, content: string): string {
@@ -11,7 +12,8 @@ describe("chained edit anchors", () => {
   it("returns updated anchors in edit result for a single-line replace", async () => {
     await withTempFile("sample.ts", "alpha\nbeta\ngamma\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
+      registerRead(pi);
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");
@@ -52,7 +54,8 @@ describe("chained edit anchors", () => {
     const fifteenLines = Array.from({ length: 15 }, (_, i) => `line ${i + 1}`).join("\n");
     await withTempFile("big.ts", fifteenLines, async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
+      registerRead(pi);
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");
@@ -80,7 +83,8 @@ describe("chained edit anchors", () => {
   it("returns diff for append operation", async () => {
     await withTempFile("app.ts", "existing\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
+      registerRead(pi);
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");
@@ -105,7 +109,8 @@ describe("chained edit anchors", () => {
   it("returns diff for prepend at BOF", async () => {
     await withTempFile("pre.ts", "existing\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
+      registerRead(pi);
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");
@@ -130,7 +135,8 @@ describe("chained edit anchors", () => {
   it("does not leak terminal-newline sentinel in diff for append on newline-terminated file", async () => {
     await withTempFile("sentinel.ts", "existing\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
+      registerRead(pi);
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");
@@ -160,7 +166,8 @@ describe("chained edit anchors", () => {
   it("shows diff when single-line replace expands", async () => {
     await withTempFile("expand.ts", "before\ntarget\nafter\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
+      registerRead(pi);
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");
@@ -189,7 +196,8 @@ describe("chained edit anchors", () => {
     // of a 4-line file should not invalidate line 1's anchor.
     await withTempFile("stale.ts", "a\nb\nc\nd\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
+      registerRead(pi);
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");

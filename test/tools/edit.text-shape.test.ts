@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFile } from "fs/promises";
-import register from "../../index";
+import registerEdit from "../../extensions/edit";
 import { computeLineHash } from "../../src/hashline";
 import { makeFakePiRegistry, withTempFile } from "../support/fixtures";
 
@@ -12,7 +12,7 @@ describe("edit tool text shape (token budget)", () => {
   it("returns unified diff in LLM-visible text with line counts in details", async () => {
     await withTempFile("sample.ts", "aaa\nbbb\nccc\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
       const editTool = getTool("edit");
       const bRef = `2#${computeLineHash(["aaa", "bbb", "ccc"], 1)}`;
 
@@ -52,7 +52,7 @@ describe("edit tool text shape (token budget)", () => {
   it("diff format uses aligned separators", async () => {
     await withTempFile("sample.ts", "aaa\nbbb\nccc\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
       const editTool = getTool("edit");
       const bRef = `2#${computeLineHash(["aaa", "bbb", "ccc"], 1)}`;
 
@@ -82,7 +82,7 @@ describe("edit tool text shape (token budget)", () => {
   it("full content details are omitted", async () => {
     await withTempFile("sample.txt", "aaa\nbbb\nccc\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
       const editTool = getTool("edit");
       const bRef = `2#${computeLineHash(["aaa", "bbb", "ccc"], 1)}`;
 
@@ -112,7 +112,7 @@ describe("edit tool text shape (token budget)", () => {
   it("noop returns classification noop", async () => {
     await withTempFile("sample.txt", "aaa\nbbb\nccc\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
       const editTool = getTool("edit");
       const bRef = `2#${computeLineHash(["aaa", "bbb", "ccc"], 1)}`;
 
@@ -141,7 +141,7 @@ describe("edit tool text shape (token budget)", () => {
   it("allows full-file deletion for small files (≤50 lines) and shows diff", async () => {
     await withTempFile("sample.txt", "only\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
       const editTool = getTool("edit");
       const oRef = `1#${computeLineHash(["only"], 0)}`;
 
@@ -171,7 +171,7 @@ describe("edit tool text shape (token budget)", () => {
     const lines = Array.from({ length: 55 }, (_, i) => `line ${i + 1}`).join("\n");
     await withTempFile("big.txt", `${lines}\n`, async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
       const editTool = getTool("edit");
       const fileLines = Array.from({ length: 55 }, (_, i) => `line ${i + 1}`);
       const firstRef = `1#${computeLineHash(fileLines, 0)}`;
@@ -201,7 +201,7 @@ describe("edit tool text shape (token budget)", () => {
     const longLine = "a".repeat(60_000);
     await withTempFile("sample.txt", `before\n${longLine}\nafter\n`, async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      register(pi);
+      registerEdit(pi);
       const editTool = getTool("edit");
       const lRef = `2#${computeLineHash(["before", longLine, "after"], 1)}`;
 
