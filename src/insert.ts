@@ -23,7 +23,6 @@ import { resolveToCwd } from "./path-utils";
 import { throwIfAborted } from "./runtime";
 import { getFileSnapshot } from "./snapshot";
 import { buildChangedResponse, buildNoopResponse } from "./edit-response";
-import { setLastEdit } from "./undo";
 import { partitionExact, fuzzyMatch } from "./fuzzy-match";
 import { getReadSnapshot } from "./read-snapshot";
 import { threeWayMerge } from "./merge";
@@ -449,7 +448,6 @@ const insertToolDefinition: InsertToolDefinition = {
           warnings,
         });
       }
-      setLastEdit({ path, previousContent: originalNormalized });
       throwIfAborted(signal);
       await writeFileAtomically(
         absolutePath,
