@@ -12,6 +12,8 @@
 - Insert tool tests (schema validation, after/before, empty file rejection).
 
 
+## 0.11.0
+
 ### Added
 - **Grep tool.** Overrides the built-in `grep` with hashline-backed output. Spawns ripgrep with `--context` to get surrounding lines from JSON events, then formats results with `LINE#HASH│` anchors so agents can grep → edit without an intermediate read. No file reads needed — all content comes from ripgrep's JSON output. Respects `.gitignore` by default. Only registers if ripgrep is available (checks pi's bin directory then system PATH).
 - **Insert tool.** `{ anchor, direction: "after"|"before", lines }` inserts new content between existing lines without touching them. The anchor line is preserved — no need to repeat its content.
