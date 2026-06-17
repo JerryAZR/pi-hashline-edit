@@ -182,7 +182,7 @@ Set `PI_HASHLINE_DEBUG=1` to show an "active" notification at session start.
 
 ## Credits
 
-Thanks to [can1357](https://github.com/can1357) for the original [oh-my-pi](https://github.com/can1357/oh-my-pi) implementation and the hashline concept.
+Based on [pi-hashline-edit](https://github.com/RimuruW/pi-hashline-edit) by [RimuruW](https://github.com/RimuruW), which in turn is built on the hashline concept from [oh-my-pi](https://github.com/can1357/oh-my-pi) by [can1357](https://github.com/can1357).
 
 ## License
 
