@@ -35,17 +35,6 @@ type Snapshot = {
 
 let lastSnapshot: Snapshot | undefined;
 let currentTurnIndex = 0;
-const pendingSnapshots = new Map<string, Snapshot>();
-
-function snapshotFile(absolutePath: string, path: string, turnIndex: number): Snapshot | undefined {
-  try {
-    const raw = readFileSync(absolutePath, "utf-8");
-    const { text } = stripBom(raw);
-    return { path, content: normalizeToLF(text), turnIndex };
-  } catch {
-    return undefined;
-  }
-}
 
 // ─── Tool definition ────────────────────────────────────────────────────
 
@@ -194,7 +183,6 @@ export function _setCurrentTurn(index: number): void {
 export function _resetUndo(): void {
   lastSnapshot = undefined;
   currentTurnIndex = 0;
-  pendingSnapshots.clear();
 }
 
 // ─── Registration ───────────────────────────────────────────────────────
@@ -202,32 +190,15 @@ export function _resetUndo(): void {
 export function registerUndoTool(pi: ExtensionAPI): void {
   pi.registerTool(undoToolDefinition);
 
-  // Track turn index
   pi.on("turn_start", async (event) => {
     currentTurnIndex = event.turnIndex;
   });
 
-  // Snapshot file content before edit/insert mutations
-  pi.on("tool_call", async (event, ctx) => {
-    if (event.toolName !== "edit" && event.toolName !== "insert") return;
-    const path = (event.input as Record<string, unknown>)?.path;
-    if (typeof path !== "string" || !path) return;
-
-    const absolutePath = resolveToCwd(path, ctx.cwd);
-    const snap = snapshotFile(absolutePath, path, currentTurnIndex);
-    if (snap) {
-      pendingSnapshots.set(event.toolCallId, snap);
-    }
-  });
-
-  // Only promote on success — a failed edit should not overwrite the
-  // snapshot from a prior successful edit
-  pi.on("tool_execution_end", async (event) => {
-    if (event.toolName !== "edit" && event.toolName !== "insert") return;
-    if (event.isError) return;
-    const snap = pendingSnapshots.get(event.toolCallId);
-    if (!snap) return;
-    pendingSnapshots.delete(event.toolCallId);
-    lastSnapshot = snap;
+  pi.events.on("hashline:edit-applied", (data: { path: string; absolutePath: string; beforeContent: string }) => {
+    lastSnapshot = {
+      path: data.path,
+      content: data.beforeContent,
+      turnIndex: currentTurnIndex,
+    };
   });
 }

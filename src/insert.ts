@@ -455,6 +455,14 @@ const insertToolDefinition: InsertToolDefinition = {
       );
       const updatedSnapshotId = (await getFileSnapshot(absolutePath)).snapshotId;
 
+      if (_insertPi?.events) {
+        _insertPi.events.emit("hashline:edit-applied", {
+          path,
+          absolutePath,
+          beforeContent: originalNormalized,
+        });
+      }
+
       return buildChangedResponse({
         path,
         originalNormalized,
@@ -468,7 +476,10 @@ const insertToolDefinition: InsertToolDefinition = {
   },
 };
 
+let _insertPi: ExtensionAPI | undefined;
+
 export function registerInsertTool(pi: ExtensionAPI): void {
+  _insertPi = pi;
   pi.events.on("hashline:read-snapshot", (data: { path: string; file: import("./hashline").HashlineFile }) => {
     setReadSnapshot(data.path, data.file);
   });
