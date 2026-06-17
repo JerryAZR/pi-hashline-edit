@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildHashlineFile, validateAnchors, resolveEditSpans, applySpans, formatMismatchError, computeAffectedLineRange, computeLineHash, type HashlineEdit } from "../../src/hashline";
+import { buildHashlineFile, validateAnchors, resolveEditSpans, applySpans, formatMismatchError, computeLineHash, type HashlineEdit } from "../../src/hashline";
 import { partitionExact } from "../../src/fuzzy-match";
 
 function applyHashlineEdits(content: string, edits: HashlineEdit[], signal?: AbortSignal) {
@@ -204,30 +204,3 @@ describe("applyHashlineEdits — lastChangedLine tracking", () => {
   });
 });
 
-describe("computeAffectedLineRange", () => {
-  it("returns null when no lines changed", () => {
-    expect(computeAffectedLineRange({
-      firstChangedLine: undefined,
-      lastChangedLine: undefined,
-      resultLineCount: 10,
-    })).toBeNull();
-  });
-
-  it("returns range with context for small changes", () => {
-    const range = computeAffectedLineRange({
-      firstChangedLine: 5,
-      lastChangedLine: 5,
-      resultLineCount: 10,
-    });
-    expect(range).toEqual({ start: 3, end: 7 });
-  });
-
-  it("returns null when range exceeds max output lines", () => {
-    const range = computeAffectedLineRange({
-      firstChangedLine: 1,
-      lastChangedLine: 20,
-      resultLineCount: 20,
-    });
-    expect(range).toBeNull();
-  });
-});

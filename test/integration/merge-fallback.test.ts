@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from "fs";
 import { join, resolve } from "path";
 import { makeFakePiRegistry, withTempFile } from "../support/fixtures";
 import registerCore from "../../extensions/core";
-import { _setReadSnapshotState, clearReadSnapshot } from "../../src/read-snapshot";
+import { _setReadSnapshotState } from "../../src/read-snapshot";
 
 describe("edit merge fallback", () => {
   it("rebases stale anchors via 3-way merge when snapshot matches", async () => {
@@ -243,7 +243,7 @@ describe("edit merge fallback", () => {
         .split("│")[0]!;
 
       // 2. Clear snapshot (simulates session switch / reload)
-      clearReadSnapshot();
+      _setReadSnapshotState(undefined);
 
       // 3. File changes externally
       writeFileSync(path, "ALPHA\nbeta\n", "utf-8");
@@ -275,7 +275,7 @@ describe("edit merge fallback", () => {
       expect(rawRead.content[0].text).not.toContain("│");
 
       // 2. Snapshot should be empty
-      clearReadSnapshot();
+      _setReadSnapshotState(undefined);
 
       // (No snapshot was stored, so subsequent edit with stale anchors would fail)
       // We just verify the snapshot wasn't stored by checking it's empty

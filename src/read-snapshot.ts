@@ -29,10 +29,6 @@ export function getReadSnapshot(path: string): ReadSnapshot | undefined {
   return lastReadSnapshot;
 }
 
-/** @internal */
-export function clearReadSnapshot(): void {
-  lastReadSnapshot = undefined;
-}
 
 /** For testing: replace the internal state. */
 export function _setReadSnapshotState(s: ReadSnapshot | undefined): void {

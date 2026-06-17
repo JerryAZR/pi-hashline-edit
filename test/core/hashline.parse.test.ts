@@ -1,57 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hashlineParseText, parseLineRef, computeLineHash } from "../../src/hashline";
-
-describe("parseLineRef", () => {
-  it("parses standard LINE#HASH format", () => {
-    const hash = computeLineHash(["hello"], 0);
-    const ref = parseLineRef(`5#${hash}`);
-    expect(ref).toEqual({ line: 5, hash });
-  });
-
-  it("parses with trailing content", () => {
-    const ref = parseLineRef("10#A4│  const x = 1;");
-    expect(ref).toEqual({ line: 10, hash: "A4" });
-  });
-
-  it("tolerates leading >>> markers", () => {
-    const ref = parseLineRef(">>> 5#3F│content");
-    expect(ref).toEqual({ line: 5, hash: "3F" });
-  });
-
-  it("tolerates leading +/- diff markers", () => {
-    const hash = computeLineHash(["content"], 0);
-    expect(parseLineRef(`+5#${hash}`)).toEqual({ line: 5, hash });
-    expect(parseLineRef(`-5#${hash}`)).toEqual({ line: 5, hash });
-  });
-
-  it("throws on invalid format", () => {
-    expect(() => parseLineRef("invalid")).toThrow(/Invalid line reference/);
-  });
-
-  it("diagnoses missing hash", () => {
-    expect(() => parseLineRef("12")).toThrow(/missing hash/i);
-  });
-
-  it("diagnoses wrong separator", () => {
-    expect(() => parseLineRef("5:AB")).toThrow(/Expected "LINE#HASH"/);
-  });
-
-  it("diagnoses invalid hash alphabet", () => {
-    expect(() => parseLineRef("12#ab")).toThrow(/alphabet 0-9 A-F only/i);
-  });
-
-  it("diagnoses invalid hash length", () => {
-    expect(() => parseLineRef("12#ABC")).toThrow(/hash must be exactly 2 characters/i);
-  });
-
-  it("throws on line 0", () => {
-    expect(() => parseLineRef("0#MQ")).toThrow(/must be >= 1/);
-  });
-
-  it("prefixes structured errors with [E_BAD_REF]", () => {
-    expect(() => parseLineRef("invalid")).toThrow(/^\[E_BAD_REF\]/);
-  });
-});
+import { hashlineParseText, computeLineHash } from "../../src/hashline";
 
 describe("hashlineParseText", () => {
   it("returns [] for null", () => {

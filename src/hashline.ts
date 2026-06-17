@@ -172,14 +172,6 @@ function diagnoseLineRef(ref: string): string {
   return `[E_BAD_REF] Invalid line reference "${trimmed || ref}". Expected "LINE${ANCHOR_SEP}HASH" (e.g. "5${ANCHOR_SEP}MQ").`;
 }
 
-/** @internal */
-export function parseLineRef(ref: string): { line: number; hash: string } {
-  // Match LINE#HASH format, tolerating:
-  //  - leading ">+" and whitespace (from mismatch/diff display)
-  //  - optional trailing display suffix (":..." content)
-  const parsed = parseAnchorRef(ref);
-  return { line: parsed.line, hash: parsed.hash };
-}
 
 function parseAnchorRef(ref: string): Anchor {
   const core = ref.replace(/^\s*[>+-]*\s*/, "").trimEnd();
@@ -563,56 +555,6 @@ export function applySpans(
   };
 }
 
-// ─── Affected-line computation (for returning anchors after edit) ───────
-
-const ANCHOR_CONTEXT_LINES = 2;
-const ANCHOR_MAX_OUTPUT_LINES = 12;
-
-/**
- * Compute the post-edit line range covering changed lines plus context.
- * Uses `firstChangedLine` and `lastChangedLine` from the edit result for
- * precise bounds. Returns null if the range (with context) exceeds the
- * output budget, signalling that the LLM should re-read instead.
- */
-/** @internal */
-export function computeAffectedLineRange(params: {
-  firstChangedLine: number | undefined;
-  lastChangedLine: number | undefined;
-  resultLineCount: number;
-  contextLines?: number;
-  maxOutputLines?: number;
-}): { start: number; end: number } | null {
-  const {
-    firstChangedLine,
-    lastChangedLine,
-    resultLineCount,
-    contextLines = ANCHOR_CONTEXT_LINES,
-    maxOutputLines = ANCHOR_MAX_OUTPUT_LINES,
-  } = params;
-
-  if (firstChangedLine === undefined || lastChangedLine === undefined) {
-    return null;
-  }
-
-  // Empty file after edit: no meaningful anchor block.
-  if (resultLineCount === 0) {
-    return null;
-  }
-
-  const start = Math.max(1, firstChangedLine - contextLines);
-  const end = Math.min(resultLineCount, lastChangedLine + contextLines);
-
-  // Guard against inverted range (can happen when context pushes end below start).
-  if (end < start) {
-    return null;
-  }
-
-  if (end - start + 1 > maxOutputLines) {
-    return null;
-  }
-
-  return { start, end };
-}
 
 export function formatHashlineRegion(
   fileLines: readonly string[],

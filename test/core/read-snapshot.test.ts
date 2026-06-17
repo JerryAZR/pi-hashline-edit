@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   setReadSnapshot,
   getReadSnapshot,
-  clearReadSnapshot,
   _setReadSnapshotState,
 } from "../../src/read-snapshot";
 import { buildHashlineFile } from "../../src/hashline";
@@ -29,12 +28,12 @@ describe("read-snapshot", () => {
 
   it("clears the snapshot", () => {
     setReadSnapshot("foo.ts", buildHashlineFile("hello\n"));
-    clearReadSnapshot();
+    _setReadSnapshotState(undefined);
     expect(getReadSnapshot("foo.ts")).toBeUndefined();
   });
 
   it("returns undefined when no snapshot exists", () => {
-    clearReadSnapshot();
+    _setReadSnapshotState(undefined);
     expect(getReadSnapshot("foo.ts")).toBeUndefined();
   });
 
