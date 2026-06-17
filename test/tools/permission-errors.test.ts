@@ -2,8 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { chmodSync, mkdirSync } from "fs";
 import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
-import registerEdit from "../../extensions/edit";
-import registerRead from "../../extensions/read";
+import registerCore from "../../extensions/core";
 import { makeFakePiRegistry } from "../support/fixtures";
 
 /**
@@ -36,8 +35,7 @@ describe.skipIf(isRoot || isWindows)("permission errors", () => {
 
       try {
         const { pi, getTool } = makeFakePiRegistry();
-        registerEdit(pi);
-        registerRead(pi);
+        registerCore(pi);
         const readTool = getTool("read");
 
         await expect(
@@ -63,8 +61,7 @@ describe.skipIf(isRoot || isWindows)("permission errors", () => {
 
       try {
         const { pi, getTool } = makeFakePiRegistry();
-        registerEdit(pi);
-        registerRead(pi);
+        registerCore(pi);
         const editTool = getTool("edit");
 
         await expect(

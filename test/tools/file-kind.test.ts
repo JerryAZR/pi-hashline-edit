@@ -2,8 +2,7 @@ import { execFile } from "child_process";
 import { describe, expect, it } from "vitest";
 import { access, appendFile, mkdtemp, mkdir, readFile, rm, writeFile } from "fs/promises";
 import { join } from "path";
-import registerEdit from "../../extensions/edit";
-import registerRead from "../../extensions/read";
+import registerCore from "../../extensions/core";
 import { classifyFileKind, loadFileKindAndText } from "../../src/file-kind";
 import { makeFakePiRegistry, withTempFile } from "../support/fixtures";
 
@@ -229,8 +228,7 @@ describe("file kind guards in tools", () => {
   it("read reports directories explicitly", async () => {
     await withTempDirectory("nested", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      registerEdit(pi);
-      registerRead(pi);
+      registerCore(pi);
       const readTool = getTool("read");
 
       await expect(
@@ -256,8 +254,7 @@ describe("file kind guards in tools", () => {
 
     await withTempBytes("sample.md", bytes, async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      registerEdit(pi);
-      registerRead(pi);
+      registerCore(pi);
       const readTool = getTool("read");
 
       const result = await readTool.execute(
@@ -278,8 +275,7 @@ describe("file kind guards in tools", () => {
       '<?xml version="1.0" encoding="utf-8"?>\n<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" />\n',
       async ({ cwd }) => {
         const { pi, getTool } = makeFakePiRegistry();
-        registerEdit(pi);
-        registerRead(pi);
+        registerCore(pi);
         const readTool = getTool("read");
 
         const result = await readTool.execute(
@@ -311,8 +307,7 @@ describe("file kind guards in tools", () => {
 
     await withTempBytes("layout-utf16.xml", bytes, async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      registerEdit(pi);
-      registerRead(pi);
+      registerCore(pi);
       const readTool = getTool("read");
 
       await expect(
@@ -333,8 +328,7 @@ describe("file kind guards in tools", () => {
       new Uint8Array([0x61, 0x00, 0x62, 0x63]),
       async ({ cwd }) => {
         const { pi, getTool } = makeFakePiRegistry();
-        registerEdit(pi);
-        registerRead(pi);
+        registerCore(pi);
         const readTool = getTool("read");
 
         await expect(
@@ -361,8 +355,7 @@ describe("file kind guards in tools", () => {
 
     await withTempBytes("late-invalid.bin", bytes, async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      registerEdit(pi);
-      registerRead(pi);
+      registerCore(pi);
       const readTool = getTool("read");
 
       const result = await readTool.execute(
@@ -385,8 +378,7 @@ describe("file kind guards in tools", () => {
       new Uint8Array([0x61, 0x00, 0x62, 0x63]),
       async ({ cwd }) => {
         const { pi, getTool } = makeFakePiRegistry();
-        registerEdit(pi);
-        registerRead(pi);
+        registerCore(pi);
         const editTool = getTool("edit");
 
         await expect(

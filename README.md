@@ -39,19 +39,18 @@ Each tool is its own extension file. The package ships all of them; enable or di
   "packages": [{
     "source": "npm:@jerryan/pi-hashline-edit",
     "extensions": [
-      "extensions/edit.ts",
-      "extensions/read.ts",
+      "extensions/core.ts",
       "extensions/undo.ts"
     ]
   }]
 }
 ```
 
-Available extensions: `extensions/edit.ts`, `extensions/insert.ts`, `extensions/read.ts`, `extensions/undo.ts`, `extensions/grep.ts`.
+Available extensions: `extensions/core.ts`, `extensions/insert.ts`, `extensions/undo.ts`, `extensions/grep.ts`.
 
 Or use `pi config` to toggle them interactively.
 
-**Rule:** either keep `edit.ts` and `read.ts` enabled (the core), plus any add-ons, or disable everything.
+**Rule:** either keep `core.ts` enabled, plus any add-ons, or disable everything.
 
 ## How It Works
 

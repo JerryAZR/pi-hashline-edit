@@ -1,14 +1,12 @@
 import { describe, expect, it } from "vitest";
-import registerEdit from "../../extensions/edit";
-import registerRead from "../../extensions/read";
+import registerCore from "../../extensions/core";
 import { makeFakePiRegistry, withTempFile } from "../support/fixtures";
 
 describe("strict hashline tool loop", () => {
   it("supports read -> fresh edit -> stale rejection -> retry with fresh anchor", async () => {
     await withTempFile("sample.ts", "alpha\nbeta\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      registerEdit(pi);
-      registerRead(pi);
+      registerCore(pi);
       const ctx = { cwd, ui: { notify() {} } } as any;
 
       const readTool = getTool("read");

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import registerEdit from "../../extensions/edit";
-import registerRead from "../../extensions/read";
+import registerCore from "../../extensions/core";
 import registerUndo from "../../extensions/undo";
 import { makeFakePiRegistry, withTempFile } from "../support/fixtures";
 import { getLastEdit, setLastEdit, clearLastEdit, setCurrentTurn } from "../../src/undo";
@@ -9,8 +8,7 @@ describe("undo tool", () => {
   it("rejects when no edit has been made", async () => {
     await withTempFile("empty.ts", "hello\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      registerEdit(pi);
-      registerRead(pi);
+      registerCore(pi);
       registerUndo(pi);
       const ctx = { cwd, ui: { notify() {} } } as any;
 
@@ -24,8 +22,7 @@ describe("undo tool", () => {
   it("reverts the most recent edit", async () => {
     await withTempFile("sample.ts", "alpha\nbeta\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      registerEdit(pi);
-      registerRead(pi);
+      registerCore(pi);
       registerUndo(pi);
       const ctx = { cwd, ui: { notify() {} } } as any;
 
@@ -60,8 +57,7 @@ describe("undo tool", () => {
   it("consumes the undo slot after success", async () => {
     await withTempFile("sample.ts", "alpha\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      registerEdit(pi);
-      registerRead(pi);
+      registerCore(pi);
       registerUndo(pi);
       const ctx = { cwd, ui: { notify() {} } } as any;
 
@@ -93,8 +89,7 @@ describe("undo tool", () => {
   it("does not set undo slot for noop edits", async () => {
     await withTempFile("sample.ts", "alpha\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      registerEdit(pi);
-      registerRead(pi);
+      registerCore(pi);
       registerUndo(pi);
       const ctx = { cwd, ui: { notify() {} } } as any;
 
@@ -127,8 +122,7 @@ describe("undo tool", () => {
   it("rejects when the edit is too old", async () => {
     await withTempFile("sample.ts", "alpha\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      registerEdit(pi);
-      registerRead(pi);
+      registerCore(pi);
       registerUndo(pi);
       const ctx = { cwd, ui: { notify() {} } } as any;
 

@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { spawnSync } from "child_process";
-import registerEdit from "../../extensions/edit";
+import registerCore from "../../extensions/core";
 import registerInsert from "../../extensions/insert";
-import registerRead from "../../extensions/read";
 import registerUndo from "../../extensions/undo";
 import registerGrep from "../../extensions/grep";
 
@@ -19,16 +18,12 @@ function collectTools(register: (pi: any) => void): string[] {
 }
 
 describe("extension registration", () => {
-  it("edit registers 'edit'", () => {
-    expect(collectTools(registerEdit).sort()).toEqual(["edit"]);
+  it("core registers 'edit' and 'read'", () => {
+    expect(collectTools(registerCore).sort()).toEqual(["edit", "read"]);
   });
 
   it("insert registers 'insert'", () => {
     expect(collectTools(registerInsert).sort()).toEqual(["insert"]);
-  });
-
-  it("read registers 'read'", () => {
-    expect(collectTools(registerRead).sort()).toEqual(["read"]);
   });
 
   it("undo registers 'undo'", () => {

@@ -5,7 +5,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { grepToolDefinition } from "../../src/grep";
 import { makeFakePiRegistry } from "../support/fixtures";
-import registerRead from "../../extensions/read";
+import registerCore from "../../extensions/core";
 
 let rgAvailable = false;
 try {
@@ -271,7 +271,7 @@ describe("grep tool execution", () => {
 
       // Use read to verify the anchor is valid
       const { pi, getTool } = makeFakePiRegistry();
-      registerRead(pi);
+      registerCore(pi);
       const readTool = getTool("read");
       const ctx = { cwd: tmp.dir, ui: { notify() {} } } as any;
 

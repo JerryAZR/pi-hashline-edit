@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFile, writeFile } from "fs/promises";
-import registerEdit from "../../extensions/edit";
-import registerRead from "../../extensions/read";
+import registerCore from "../../extensions/core";
 import { computeLineHash } from "../../src/hashline";
 import { makeFakePiRegistry, withTempFile } from "../support/fixtures";
 
@@ -13,8 +12,7 @@ describe("snapshotId surface (details-only after W2)", () => {
   it("read writes snapshotId to details but not to text", async () => {
     await withTempFile("sample.txt", "alpha\nbeta\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      registerEdit(pi);
-      registerRead(pi);
+      registerCore(pi);
       const readTool = getTool("read");
 
       const result = await readTool.execute(
@@ -34,8 +32,7 @@ describe("snapshotId surface (details-only after W2)", () => {
   it("edit silently ignores unknown root fields (AJV responsibility)", async () => {
     await withTempFile("sample.txt", "alpha\nbeta\n", async ({ cwd, path }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      registerEdit(pi);
-      registerRead(pi);
+      registerCore(pi);
       const editTool = getTool("edit");
       const bRef = `2#${computeLineHash(["alpha", "beta"], 1)}`;
 
@@ -61,8 +58,7 @@ describe("snapshotId surface (details-only after W2)", () => {
       "one\ntwo\nthree\nfour\nfive\n",
       async ({ cwd, path }) => {
         const { pi, getTool } = makeFakePiRegistry();
-        registerEdit(pi);
-        registerRead(pi);
+        registerCore(pi);
         const editTool = getTool("edit");
         const fRef = `4#${computeLineHash(["one", "two", "three", "four", "five"], 3)}`;
 
@@ -97,8 +93,7 @@ describe("snapshotId surface (details-only after W2)", () => {
   it("edit text response no longer contains a SnapshotId line", async () => {
     await withTempFile("sample.txt", "alpha\nbeta\n", async ({ cwd }) => {
       const { pi, getTool } = makeFakePiRegistry();
-      registerEdit(pi);
-      registerRead(pi);
+      registerCore(pi);
       const editTool = getTool("edit");
       const bRef = `2#${computeLineHash(["alpha", "beta"], 1)}`;
 
@@ -130,8 +125,7 @@ describe("snapshotId surface (details-only after W2)", () => {
       "one\ntwo\nthree\n",
       async ({ cwd, path }) => {
         const { pi, getTool } = makeFakePiRegistry();
-        registerEdit(pi);
-        registerRead(pi);
+        registerCore(pi);
         const editTool = getTool("edit");
 
         // External change: rewrite the line we are about to target.
@@ -172,8 +166,7 @@ describe("snapshotId surface (details-only after W2)", () => {
       "one\ntwo\nthree\n",
       async ({ cwd, path }) => {
         const { pi, getTool } = makeFakePiRegistry();
-        registerEdit(pi);
-        registerRead(pi);
+        registerCore(pi);
         const editTool = getTool("edit");
 
         await writeFile(path, "one\nTWO!\nthree\n", "utf-8");
