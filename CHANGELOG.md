@@ -1,6 +1,20 @@
 # Changelog
 
-## 0.11.0
+## 0.11.1
+
+### Changed
+- **Undo is self-contained.** The undo tool now monitors `edit`/`insert` via `tool_call` and `tool_execution_end` events rather than relying on `setLastEdit()` calls from the edit tool. Snapshots are taken before mutations and promoted on success. Failed edits don't overwrite valid snapshots.
+- **Split into individual extension files.** Each tool is its own extension (`extensions/core.ts`, `insert.ts`, `undo.ts`, `grep.ts`, `tool-usage.ts`). Users toggle via `pi config` or package filtering. No custom config code.
+- **Combined core extension.** `edit` and `read` are bundled into `extensions/core.ts` since they're always used together. Add-ons (`insert`, `undo`, `grep`) are independent.
+
+### Added
+- `/tool-usage` slash command. Counts tool calls in the current session and highlights tools with zero usage.
+- Insert tool tests (schema validation, after/before, empty file rejection).
+
+### Fixed
+- `tool-usage` iterates `content` blocks (not message roles) to count tool calls.
+- Removed stale `setLastEdit` call from `insert.ts`.
+
 
 ### Added
 - **Grep tool.** Overrides the built-in `grep` with hashline-backed output. Spawns ripgrep with `--context` to get surrounding lines from JSON events, then formats results with `LINE#HASH│` anchors so agents can grep → edit without an intermediate read. No file reads needed — all content comes from ripgrep's JSON output. Respects `.gitignore` by default. Only registers if ripgrep is available (checks pi's bin directory then system PATH).
