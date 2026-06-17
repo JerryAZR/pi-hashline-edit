@@ -14,7 +14,7 @@ describe("extension registration", () => {
 
     register(pi);
 
-    const expected = ["edit", "insert", "read", "undo"];
+    const expected = ["edit", "read", "undo"];
 
     // grep only registers if rg is available
     let rgOk = false;

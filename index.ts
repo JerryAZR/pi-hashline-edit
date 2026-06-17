@@ -1,6 +1,6 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { registerEditTool } from "./src/edit";
-import { registerInsertTool } from "./src/insert";
+// import { registerInsertTool } from "./src/insert"; // opt-in: uncomment to enable insert tool
 import { registerGrepTool } from "./src/grep";
 import { registerReadTool } from "./src/read";
 import { registerUndoTool, setCurrentTurn } from "./src/undo";
@@ -8,7 +8,7 @@ import { registerUndoTool, setCurrentTurn } from "./src/undo";
 export default function (pi: ExtensionAPI): void {
   registerReadTool(pi);
   registerEditTool(pi);
-  registerInsertTool(pi);
+  // registerInsertTool(pi); // disabled — some models prefer edit for insertions; kept for future config opt-in
   registerGrepTool(pi);
   registerUndoTool(pi);
 
