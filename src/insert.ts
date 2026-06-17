@@ -1,35 +1,17 @@
 import { Text } from "@earendil-works/pi-tui";
 import type { ExtensionAPI, ToolDefinition } from "@earendil-works/pi-coding-agent";
-import { withFileMutationQueue } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { constants } from "fs";
 import { readFileSync } from "fs";
 import {
-  restoreLineEndings,
-} from "./edit-diff";
-import { resolveMutationTargetPath, writeFileAtomically } from "./fs-write";
-import {
-  buildHashlineFile,
-  validateAnchors,
-  resolveEditSpans,
-  applySpans,
-  resolveEditAnchors,
   type HashlineToolEdit,
-  type HashlineEdit,
-  formatMismatchError,
   ANCHOR_SEP,
 } from "./hashline";
 import { resolveToCwd } from "./path-utils";
-import { throwIfAborted } from "./runtime";
-import { getFileSnapshot } from "./snapshot";
-import { buildChangedResponse, buildNoopResponse } from "./edit-response";
-import { partitionExact, fuzzyMatch } from "./fuzzy-match";
-import { getReadSnapshot, setReadSnapshot } from "./read-snapshot";
-import { threeWayMerge } from "./merge";
 import { formatDiffResult } from "./edit-diff-render";
-import { resolveEditTarget, emitUndoSnapshot } from "./edit";
-
-// ─── Schema ─────────────────────────────────────────────────────────────
+import { setReadSnapshot } from "./read-snapshot";
+import { resolveEditTarget } from "./edit";
+import { applyMutation } from "./mutation";
 
 const insertEntrySchema = Type.Object(
   {
@@ -311,161 +293,13 @@ const insertToolDefinition: InsertToolDefinition = {
       (params as InsertRequestParams).edits,
     );
 
-    const mutationTargetPath = await resolveMutationTargetPath(absolutePath);
-    return withFileMutationQueue(mutationTargetPath, async () => {
-      throwIfAborted(signal);
-      const target = await resolveEditTarget(absolutePath, path, constants.R_OK | constants.W_OK);
-      if (!target.ok) {
-        const prefix = target.code ? `[${target.code}] ` : "";
-        throw new Error(`${prefix}${target.error}`);
-      }
-      const { bom, normalized: originalNormalized, ending: originalEnding } = target;
-
-      const resolved = resolveEditAnchors(toolEdits);
-
-      let result: string;
-      let warnings: string[];
-      let noopEdits: { editIndex: number; loc: string; currentContent: string }[] | undefined;
-      let merged = false;
-
-      throwIfAborted(signal);
-      const currentFile = buildHashlineFile(originalNormalized);
-      const validation = validateAnchors(currentFile, resolved);
-
-      if (!validation.ok) {
-        if (validation.kind === "range") {
-          throw new Error(validation.message);
-        } else if (validation.kind === "stale") {
-          // Multi-tier stale-anchor resolution
-          const exactResult = partitionExact(resolved, currentFile);
-          const snapshot = getReadSnapshot(absolutePath);
-          let remaining = exactResult.unmatched;
-          let allWarnings: string[] = [];
-          let fuzzyEdits: HashlineEdit[] = [];
-
-          // Tier 2: fuzzy match against current
-          if (remaining.length > 0 && snapshot) {
-            const fuzzyResult = fuzzyMatch(remaining, currentFile, snapshot.file);
-            fuzzyEdits = fuzzyResult.matched;
-            allWarnings.push(...fuzzyResult.warnings);
-            remaining = fuzzyResult.unmatched;
-          }
-
-          // Fuzzy resolved all remaining
-          if (remaining.length === 0) {
-            const currentEdits = [...exactResult.matched, ...fuzzyEdits];
-            const spanResult = resolveEditSpans(currentFile, currentEdits);
-            if (!spanResult.ok) throw new Error(spanResult.message);
-            const applied = applySpans(currentFile, spanResult.spans);
-            result = applied.file.content;
-            warnings = [...allWarnings, ...(spanResult.warnings ?? [])];
-            noopEdits = spanResult.noopEdits;
-            merged = true;
-          }
-
-          // Tier 3: snapshot match for any remaining edits
-          if (!merged && snapshot && remaining.length > 0) {
-            const snapResult = partitionExact(remaining, snapshot.file);
-            if (snapResult.unmatched.length === 0) {
-              const currentEdits = [...exactResult.matched, ...fuzzyEdits];
-              const snapshotEdits = snapResult.matched;
-
-              const currentSpans = resolveEditSpans(currentFile, currentEdits);
-              if (!currentSpans.ok) throw new Error(currentSpans.message);
-
-              const snapSpans = resolveEditSpans(snapshot.file, snapshotEdits);
-              if (!snapSpans.ok) throw new Error(snapSpans.message);
-
-              allWarnings.push(
-                "[MERGED] File changed since last read. Edits were rebased onto the current version. Please review the diff carefully.",
-              );
-
-              const currentApplied = applySpans(currentFile, currentSpans.spans);
-              const snapApplied = applySpans(snapshot.file, snapSpans.spans);
-
-              const mergedContent = threeWayMerge(
-                snapshot.file.content,
-                snapApplied.file.content,
-                currentApplied.file.content,
-              );
-
-              if (mergedContent !== null) {
-                result = mergedContent;
-                warnings = [
-                  ...allWarnings,
-                  ...(currentSpans.warnings ?? []),
-                  ...(snapSpans.warnings ?? []),
-                ];
-                noopEdits = [
-                  ...(currentSpans.noopEdits ?? []),
-                  ...(snapSpans.noopEdits ?? []),
-                ];
-                merged = true;
-              }
-            }
-          }
-
-          if (!merged) {
-            const retryLines = new Set<number>();
-            const mismatches = remaining.flatMap((e) => {
-              const refs = e.end ? [e.pos, e.end] : [e.pos];
-              return refs.map((r) => {
-                retryLines.add(r.line);
-                return {
-                  line: r.line,
-                  expected: r.hash,
-                  actual: currentFile.lineHashes[r.line - 1] ?? "OOB",
-                };
-              });
-            });
-            throw new Error(formatMismatchError(mismatches, currentFile.lines, retryLines));
-          }
-        } else {
-          throw new Error(`[E_INTERNAL] Unhandled validation kind: ${(validation as any).kind}`);
-        }
-      } else {
-        const spanResult = resolveEditSpans(currentFile, resolved);
-        if (!spanResult.ok) {
-          throw new Error(spanResult.message);
-        }
-        const applied = applySpans(currentFile, spanResult.spans);
-        result = applied.file.content;
-        warnings = spanResult.warnings;
-        noopEdits = spanResult.noopEdits;
-      }
-
-      const originalLineCount = originalNormalized.split("\n").length - (originalNormalized.endsWith("\n") ? 1 : 0);
-      const editsAttempted = toolEdits.length;
-
-      if (originalNormalized === result) {
-        const noopSnapshotId = (await getFileSnapshot(absolutePath)).snapshotId;
-        return buildNoopResponse({
-          path,
-          noopEdits,
-          originalNormalized,
-          snapshotId: noopSnapshotId,
-          editsAttempted,
-          warnings,
-        });
-      }
-      throwIfAborted(signal);
-      await writeFileAtomically(
-        absolutePath,
-        bom + restoreLineEndings(result, originalEnding),
-      );
-      const updatedSnapshotId = (await getFileSnapshot(absolutePath)).snapshotId;
-
-      emitUndoSnapshot(_insertPi, path, absolutePath, originalNormalized);
-
-      return buildChangedResponse({
-        path,
-        originalNormalized,
-        result,
-        warnings,
-        snapshotId: updatedSnapshotId,
-        editsAttempted,
-        noopEditsCount: noopEdits?.length ?? 0,
-      });
+    return applyMutation({
+      pi: _insertPi,
+      path,
+      absolutePath,
+      toolEdits,
+      signal,
+      ctx,
     });
   },
 };
