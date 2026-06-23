@@ -77,6 +77,43 @@ describe("edit merge fallback", () => {
     });
   });
 
+  it("finds snapshot when read uses relative and edit uses absolute path", async () => {
+    await withTempFile("sample.ts", "l1\nl2\nl3\nl4\nl5\nl6\nl7\nl8\nl9\nl10\n", async ({ cwd, path }) => {
+      const { pi, getTool } = makeFakePiRegistry();
+      registerCore(pi);
+      const ctx = { cwd, ui: { notify() {} } } as any;
+
+      const readTool = getTool("read");
+      const editTool = getTool("edit");
+
+      // 1. Read using a relative path
+      const firstRead = await readTool.execute("r1", { path: "sample.ts" }, undefined, undefined, ctx);
+      const l8Ref = firstRead.content[0].text
+        .split("\n")
+        .find((line: string) => line.includes("│l8"))!
+        .split("│")[0]!;
+
+      // 2. File changes externally — insertion at beginning shifts line numbers by +1
+      writeFileSync(path, "X\nl1\nl2\nl3\nl4\nl5\nl6\nl7\nl8\nl9\nl10\n", "utf-8");
+
+      // 3. Edit using the absolute path — snapshot should still match
+      const absolutePath = resolve(cwd, "sample.ts");
+      const editResult = await editTool.execute(
+        "e1",
+        { path: absolutePath, edits: [{ range: [l8Ref, l8Ref], lines: ["L8"] }] },
+        undefined,
+        undefined,
+        ctx,
+      );
+
+      expect(editResult.content[0].text).toContain("[MERGED]");
+      expect(editResult.content[0].text).not.toContain("[RELOCATED]");
+      const finalContent = readFileSync(path, "utf-8");
+      expect(finalContent).toBe("X\nl1\nl2\nl3\nl4\nl5\nl6\nl7\nL8\nl9\nl10\n");
+    });
+  });
+
+
   it("falls back to 3-way merge on deep shifts", async () => {
     await withTempFile("sample.ts", "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\n", async ({ cwd, path }) => {
       const { pi, getTool } = makeFakePiRegistry();
