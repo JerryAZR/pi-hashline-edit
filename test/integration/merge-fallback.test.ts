@@ -6,7 +6,7 @@ import registerCore from "../../extensions/core";
 import { _setReadSnapshotState } from "../../src/read-snapshot";
 
 describe("edit merge fallback", () => {
-  it("rebases stale anchors via 3-way merge when snapshot matches", async () => {
+  it("rejects small shifts when no snapshot is available", async () => {
     await withTempFile("sample.ts", "l1\nl2\nl3\nl4\nl5\nl6\nl7\nl8\nl9\nl10\n", async ({ cwd, path }) => {
       const { pi, getTool } = makeFakePiRegistry();
       registerCore(pi);
@@ -22,28 +22,26 @@ describe("edit merge fallback", () => {
         .find((line: string) => line.includes("│l8"))!
         .split("│")[0]!;
 
-      // 2. File changes externally — insertion at beginning shifts line numbers
+      // 2. File changes externally — insertion at beginning shifts line numbers by +1
       writeFileSync(path, "X\nl1\nl2\nl3\nl4\nl5\nl6\nl7\nl8\nl9\nl10\n", "utf-8");
 
-      // 3. Edit with old anchors should succeed via 3-way merge
-      const editResult = await editTool.execute(
-        "e1",
-        { path: "sample.ts", edits: [{ range: [l8Ref, l8Ref], lines: ["L8"] }] },
-        undefined,
-        undefined,
-        ctx,
-      );
+      // 3. Without the snapshot there is no merge fallback
+      _setReadSnapshotState(undefined);
 
-      // Should contain the [RELOCATED] warning before the diff
-      expect(editResult.content[0].text).toContain("[RELOCATED]");
-
-      // File should have both changes: L8 (from agent) and X (from external)
-      const finalContent = readFileSync(path, "utf-8");
-      expect(finalContent).toBe("X\nl1\nl2\nl3\nl4\nl5\nl6\nl7\nL8\nl9\nl10\n");
+      // 4. Edit with old anchors should fail — no fuzzy relocation anymore
+      await expect(
+        editTool.execute(
+          "e1",
+          { path: "sample.ts", edits: [{ range: [l8Ref, l8Ref], lines: ["L8"] }] },
+          undefined,
+          undefined,
+          ctx,
+        ),
+      ).rejects.toThrow(/E_STALE_ANCHOR/);
     });
   });
 
-  it("finds snapshot when read uses relative and edit uses absolute path", async () => {
+  it("rejects small shifts when snapshot is cleared even with an absolute path", async () => {
     await withTempFile("sample.ts", "l1\nl2\nl3\nl4\nl5\nl6\nl7\nl8\nl9\nl10\n", async ({ cwd, path }) => {
       const { pi, getTool } = makeFakePiRegistry();
       registerCore(pi);
@@ -62,23 +60,24 @@ describe("edit merge fallback", () => {
       // 2. File changes externally
       writeFileSync(path, "X\nl1\nl2\nl3\nl4\nl5\nl6\nl7\nl8\nl9\nl10\n", "utf-8");
 
-      // 3. Edit using the absolute path — snapshot should still match
-      const absolutePath = resolve(cwd, "sample.ts");
-      const editResult = await editTool.execute(
-        "e1",
-        { path: absolutePath, edits: [{ range: [l8Ref, l8Ref], lines: ["L8"] }] },
-        undefined,
-        undefined,
-        ctx,
-      );
+      // 3. Clear snapshot before editing
+      _setReadSnapshotState(undefined);
 
-      expect(editResult.content[0].text).toContain("[RELOCATED]");
-      const finalContent = readFileSync(path, "utf-8");
-      expect(finalContent).toBe("X\nl1\nl2\nl3\nl4\nl5\nl6\nl7\nL8\nl9\nl10\n");
+      // 4. Edit using the absolute path — should still reject without fuzzy relocation
+      const absolutePath = resolve(cwd, "sample.ts");
+      await expect(
+        editTool.execute(
+          "e1",
+          { path: absolutePath, edits: [{ range: [l8Ref, l8Ref], lines: ["L8"] }] },
+          undefined,
+          undefined,
+          ctx,
+        ),
+      ).rejects.toThrow(/E_STALE_ANCHOR/);
     });
   });
 
-  it("falls back to 3-way merge when shift exceeds fuzzy window", async () => {
+  it("falls back to 3-way merge on deep shifts", async () => {
     await withTempFile("sample.ts", "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\n", async ({ cwd, path }) => {
       const { pi, getTool } = makeFakePiRegistry();
       registerCore(pi);
@@ -93,11 +92,11 @@ describe("edit merge fallback", () => {
         .split("\n")
         .find((line: string) => line.includes("│e"))!
         .split("│")[0]!;
-      // 2. Insert 1 line at top — shifts e by +1, within fuzzy window (±1)
-      // Hash is unchanged (same neighbors), fuzzy catches with [RELOCATED].
-      writeFileSync(path, "X\na\nb\nc\nd\ne\nf\ng\nh\ni\nj\n", "utf-8");
 
-      // 3. Edit with old anchor succeeds via hash-based fuzzy relocation
+      // 2. Insert 3 lines at top — shifts e by +3
+      writeFileSync(path, "X\nY\nZ\na\nb\nc\nd\ne\nf\ng\nh\ni\nj\n", "utf-8");
+
+      // 3. Edit with old anchor succeeds via 3-way merge
       const editResult = await editTool.execute(
         "e1",
         { path: "sample.ts", edits: [{ range: [eRef, eRef], lines: ["E"] }] },
@@ -106,13 +105,14 @@ describe("edit merge fallback", () => {
         ctx,
       );
 
-      expect(editResult.content[0].text).toContain("[RELOCATED]");
+      expect(editResult.content[0].text).toContain("[MERGED]");
+      expect(editResult.content[0].text).not.toContain("[RELOCATED]");
       const finalContent = readFileSync(path, "utf-8");
-      expect(finalContent).toBe("X\na\nb\nc\nd\nE\nf\ng\nh\ni\nj\n");
+      expect(finalContent).toBe("X\nY\nZ\na\nb\nc\nd\nE\nf\ng\nh\ni\nj\n");
     });
   });
 
-  it("splits edits across exact and fuzzy tiers", async () => {
+  it("rejects mixed exact and shifted edits when no snapshot is available", async () => {
     // 10-line file, external deletes line 3 (c) → lines after shift left by 1
     await withTempFile("sample.ts", "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\n", async ({ cwd, path }) => {
       const { pi, getTool } = makeFakePiRegistry();
@@ -130,31 +130,30 @@ describe("edit merge fallback", () => {
       // External: delete line 3 (c)
       writeFileSync(path, "a\nb\nd\ne\nf\ng\nh\ni\nj\n", "utf-8");
 
-      const editResult = await editTool.execute(
-        "e1",
-        {
-          path: "sample.ts",
-          edits: [
-            { range: [aRef, aRef], lines: ["A"] },  // exact
-            { range: [eRef, eRef], lines: ["E"] },  // fuzzy (shifted to line 4)
-          ],
-        },
-        undefined,
-        undefined,
-        ctx,
-      );
+      // Without the snapshot there is no merge fallback
+      _setReadSnapshotState(undefined);
 
-      expect(editResult.content[0].text).toContain("[RELOCATED]");
-      expect(editResult.content[0].text).not.toContain("[MERGED]");
-      const finalContent = readFileSync(path, "utf-8");
-      expect(finalContent).toBe("A\nb\nd\nE\nf\ng\nh\ni\nj\n");
+      await expect(
+        editTool.execute(
+          "e1",
+          {
+            path: "sample.ts",
+            edits: [
+              { range: [aRef, aRef], lines: ["A"] },  // exact
+              { range: [eRef, eRef], lines: ["E"] },  // shifted by -1, no fuzzy relocation
+            ],
+          },
+          undefined,
+          undefined,
+          ctx,
+        ),
+      ).rejects.toThrow(/E_STALE_ANCHOR/);
     });
   });
 
-  it("splits edits across exact, fuzzy, and snapshot (merge) tiers", async () => {
+  it("splits edits across exact and snapshot (merge) tiers", async () => {
     // 15-line file, delete e,f,g (lines 5-7). Line 2 (b) → exact,
-    // line 12 (l) → hash unchanged but shift -3 > fuzzy window → merge.
-    // Line 4 (d) → hash changed (neighbor broken) → rejected.
+    // line 12 (l) → hash unchanged but shift -3 → merge.
     await withTempFile(
       "sample.ts",
       "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\n",
@@ -189,11 +188,13 @@ describe("edit merge fallback", () => {
         );
 
         expect(editResult.content[0].text).toContain("[MERGED]");
+        expect(editResult.content[0].text).not.toContain("[RELOCATED]");
         const finalContent = readFileSync(path, "utf-8");
         expect(finalContent).toBe("a\nB\nc\nd\nh\ni\nj\nk\nL\nm\nn\no\n");
       },
     );
   });
+
   it("falls back to hard reject when snapshot does not match either", async () => {
     await withTempFile("sample.ts", "alpha\nbeta\n", async ({ cwd, path }) => {
       const { pi, getTool } = makeFakePiRegistry();

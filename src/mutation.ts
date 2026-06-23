@@ -18,7 +18,7 @@ import {
 import { throwIfAborted } from "./runtime";
 import { getFileSnapshot } from "./snapshot";
 import { buildChangedResponse, buildNoopResponse } from "./edit-response";
-import { partitionExact, fuzzyMatch } from "./fuzzy-match";
+import { partitionExact } from "./fuzzy-match";
 import { getReadSnapshot } from "./read-snapshot";
 import { threeWayMerge } from "./merge";
 import { resolveEditTarget, emitUndoSnapshot } from "./edit";
@@ -86,22 +86,13 @@ export async function applyMutation(options: MutationOptions): Promise<MutationR
     const exactResult = partitionExact(resolved, currentFile);
     const snapshot = getReadSnapshot(absolutePath);
     let allWarnings: string[] = [];
-    let fuzzyEdits: HashlineEdit[] = [];
     let remaining = exactResult.unmatched;
-
-    // Tier 2: hash-based fuzzy — search +-N lines for anchor hash
-    if (remaining.length > 0) {
-      const fuzzyResult = fuzzyMatch(remaining, currentFile);
-      fuzzyEdits = fuzzyResult.matched;
-      allWarnings.push(...fuzzyResult.warnings);
-      remaining = fuzzyResult.unmatched;
-    }
 
     let resolved_ = remaining.length === 0;
 
-    // Apply exact + fuzzy to current file
+    // Apply exact matches to current file
     if (resolved_) {
-      const currentEdits = [...exactResult.matched, ...fuzzyEdits];
+      const currentEdits = [...exactResult.matched];
       const spanResult = resolveEditSpans(currentFile, currentEdits);
       if (!spanResult.ok) throw new Error(spanResult.message);
       const applied = applySpans(currentFile, spanResult.spans);
@@ -110,11 +101,11 @@ export async function applyMutation(options: MutationOptions): Promise<MutationR
       noopEdits = spanResult.noopEdits;
     }
 
-    // Tier 3: snapshot match → 3-way merge
+    // Tier 2: snapshot match → 3-way merge
     if (!resolved_ && snapshot && remaining.length > 0) {
       const snapResult = partitionExact(remaining, snapshot.file);
       if (snapResult.unmatched.length === 0) {
-        const currentEdits = [...exactResult.matched, ...fuzzyEdits];
+        const currentEdits = [...exactResult.matched];
         const snapshotEdits = snapResult.matched;
 
         const currentSpans = resolveEditSpans(currentFile, currentEdits);

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.4
+
+### Removed
+
+- **Hash-based fuzzy anchor relocation.** The `fuzzyMatch` tier has been removed from the stale-anchor recovery flow. Searching ±1/±2 lines for an anchor hash and silently correcting the range masked stale agent memory and allowed edits to land on unintended lines. The tool now uses a two-tier flow: exact match against the live file, then snapshot merge against the last `read` snapshot. Edits that fail both tiers reject the entire request with `[E_STALE_ANCHOR]` and ask for a fresh `read`.
+
 ## 0.11.3
 
 ### Fixed

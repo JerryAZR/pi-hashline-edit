@@ -282,7 +282,7 @@ describe("integration: resolveEditAnchors → applyHashlineEdits", () => {
     expect(() => resolveEditAnchors(toolEdits)).toThrow(/^\[E_INVALID_PATCH\]/);
   });
 
-  it("full pipeline: copied full-line anchor rejects fuzzy textHint when hash is arbitrary", () => {
+  it("full pipeline: copied full-line anchor with arbitrary hash is rejected as stale anchor", () => {
     const line = 'he said "hi"';
     const content = `${line}\nkeep`;
     const actualHash = computeLineHash([line], 0);
