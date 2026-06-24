@@ -177,13 +177,13 @@ Expected: The file is restored to its pre-edit state. The response contains a di
 Call `undo` a second time immediately after Test 14.
 Expected: `[E_NO_UNDO]` — the undo slot is consumed after the first successful revert.
 
-### 16. 3-way merge fallback (deep shift)
+### 16. 3-way merge fallback (external shift)
 
-Read `test-file.ts` and note the anchor for `console.log("see ya");`. Use the bash tool to insert **three lines** at the very top of the file (e.g., `// header1`, `// header2`, `// header3`). This shifts all line numbers down by three — beyond the ±1 fuzzy window.
+Read `test-file.ts` and note the anchor for `console.log("see ya");`. Use the bash tool to insert **three lines** at the very top of the file (e.g., `// header1`, `// header2`, `// header3`). This shifts all line numbers down by three.
 
 Now attempt an edit on `console.log("see ya");` using the **old anchors**.
 
-Expected: The edit succeeds with a `[MERGED]` warning. The file contains both your edit change AND the prepended headers. The tool detected stale anchors, fuzzy matching couldn't relocate (shift exceeds ±1), fell back to the snapshot, and applied via 3-way merge.
+Expected: The edit succeeds with a `[MERGED]` warning. The file contains both your edit change AND the prepended headers. The anchors no longer match the live file (shifted by three lines), but they still match the snapshot from your earlier `read`. The tool fell back to a 3-way merge, rebasing your edit onto the current file.
 
 
 ### 17. Raw read has no anchors
