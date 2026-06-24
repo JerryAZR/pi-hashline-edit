@@ -26,7 +26,7 @@ const editEntrySchema = Type.Object(
       minItems: 2,
       maxItems: 2,
       description:
-        `LINE${ANCHOR_SEP}HASH anchor pair [start, end] copied from a recent \`read\` or diff output. Use the same anchor twice for single-line: ["42${ANCHOR_SEP}A4", "42${ANCHOR_SEP}A4"].`,
+        `LINE${ANCHOR_SEP}HASH anchor pair [start, end] copied from a recent tool result (read, grep, or edit diff). Use the same anchor twice for single-line: ["42${ANCHOR_SEP}A4", "42${ANCHOR_SEP}A4"].`,
     }),
     lines: Type.Array(Type.String(), {
       description: "New content lines. Use [] to delete.",
@@ -156,7 +156,7 @@ export async function resolveEditTarget(
     return {
       ok: false,
       code: "E_EMPTY_FILE",
-      error: `File is empty: ${path}. The edit tool requires anchors from a read output, which an empty file cannot provide. Use the write tool to create initial content in an empty file.`,
+      error: `File is empty: ${path}. The edit tool requires anchors from a tool result, which an empty file cannot provide. Use the write tool to create initial content in an empty file.`,
     };
   }
 

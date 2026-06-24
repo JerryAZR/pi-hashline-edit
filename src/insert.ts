@@ -18,7 +18,7 @@ const insertEntrySchema = Type.Object(
   {
     anchor: Type.String({
       description:
-        `LINE${ANCHOR_SEP}HASH anchor copied from a recent \`read\` output (e.g. "42${ANCHOR_SEP}A4"). The insert target.`,
+        `LINE${ANCHOR_SEP}HASH anchor copied from a recent tool result (read, grep, or edit diff) (e.g. "42${ANCHOR_SEP}A4"). The insert target.`,
     }),
     direction: Type.String({
       enum: ["after", "before"],

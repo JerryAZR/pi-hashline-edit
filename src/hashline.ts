@@ -139,7 +139,7 @@ function diagnoseLineRef(ref: string): string {
     return `[E_BAD_REF] Invalid line reference "${ref}". Expected "LINE${ANCHOR_SEP}HASH" (e.g. "5${ANCHOR_SEP}MQ").`;
   }
   if (/^\d+\s*$/.test(core)) {
-    return `[E_BAD_REF] Invalid line reference "${ref}": missing hash, use "LINE${ANCHOR_SEP}HASH" from read output (e.g. "5${ANCHOR_SEP}MQ").`;
+    return `[E_BAD_REF] Invalid line reference "${ref}": missing hash, use "LINE${ANCHOR_SEP}HASH" from a tool result (e.g. "5${ANCHOR_SEP}MQ").`;
   }
   if (new RegExp(`^\d+\s*[:${CONTENT_SEP}]`).test(core)) {
     return `[E_BAD_REF] Invalid line reference "${ref}": wrong separator, use "LINE${ANCHOR_SEP}HASH" instead of "LINE:..." or "LINE${CONTENT_SEP}...".`;
@@ -162,7 +162,7 @@ function diagnoseLineRef(ref: string): string {
 
   const missingHashMatch = core.match(new RegExp(`^(\d+)\s*${ANCHOR_SEP}\s*$`));
   if (missingHashMatch) {
-    return `[E_BAD_REF] Invalid line reference "${ref}": missing hash after "${ANCHOR_SEP}", use "LINE${ANCHOR_SEP}HASH" from read output.`;
+    return `[E_BAD_REF] Invalid line reference "${ref}": missing hash after "${ANCHOR_SEP}", use "LINE${ANCHOR_SEP}HASH" from a tool result.`;
   }
 
   if (new RegExp(`^0+\s*${ANCHOR_SEP}`).test(core)) {
