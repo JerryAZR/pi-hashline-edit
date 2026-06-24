@@ -27,8 +27,7 @@ function applyHashlineEdits(content: string, edits: HashlineEdit[]) {
         actual: file.lineHashes[r.line - 1] ?? "OOB",
       }));
     });
-    const retryLines = new Set(mismatches.map((m) => m.line));
-    throw new Error(formatMismatchError(mismatches, file.lines, retryLines));
+    throw new Error(formatMismatchError(mismatches, file.lines));
   }
   const spanResult = resolveEditSpans(file, edits);
   if (!spanResult.ok) throw new Error(spanResult.message);

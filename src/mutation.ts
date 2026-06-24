@@ -144,20 +144,16 @@ export async function applyMutation(options: MutationOptions): Promise<MutationR
     }
 
     if (!resolved_) {
-      const retryLines = new Set<number>();
       const mismatches = remaining.flatMap((e) => {
         const refs = e.end ? [e.pos, e.end] : [e.pos];
-        return refs.map((r) => {
-          retryLines.add(r.line);
-          return {
-            line: r.line,
-            expected: r.hash,
-            actual: currentFile.lineHashes[r.line - 1] ?? "OOB",
-          };
-        });
+        return refs.map((r) => ({
+          line: r.line,
+          expected: r.hash,
+          actual: currentFile.lineHashes[r.line - 1] ?? "OOB",
+        }));
       });
       throw new Error(
-        formatMismatchError(mismatches, currentFile.lines, retryLines),
+        formatMismatchError(mismatches, currentFile.lines),
       );
     }
 

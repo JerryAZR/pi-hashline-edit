@@ -28,8 +28,7 @@ function applyHashlineEdits(content: string, edits: HashlineEdit[], signal?: Abo
         actual: file.lineHashes[r.line - 1] ?? "OOB",
       }));
     });
-    const retryLines = new Set(mismatches.map((m) => m.line));
-    throw new Error(formatMismatchError(mismatches, file.lines, retryLines));
+    throw new Error(formatMismatchError(mismatches, file.lines));
   }
   const spanResult = resolveEditSpans(file, edits);
   if (!spanResult.ok) throw new Error(spanResult.message);
@@ -100,7 +99,7 @@ describe("applyHashlineEdits — error handling", () => {
     ];
     expect(() => applyHashlineEdits(content, edits as any)).toThrow(/must be <= end line/);
   });
-  it("mismatch message exposes retryable >>> LINE#HASH snippets", () => {
+  it("mismatch message exposes current LINE#HASH snippets", () => {
     expect(() =>
       applyHashlineEdits("aaa", [
         {
@@ -109,7 +108,7 @@ describe("applyHashlineEdits — error handling", () => {
           lines: ["bbb"],
         } as any,
       ]),
-    ).toThrow(/>>> 1#[0-9A-F]{2}│aaa/);
+    ).toThrow(/  1#[0-9A-F]{2}│aaa/);
   });
 
   it("retains still-valid range endpoints in retry snippets", () => {
@@ -131,7 +130,7 @@ describe("applyHashlineEdits — error handling", () => {
         throw error;
       }
       expect(error.message).toContain(
-        `>>> ${validEnd.line}#${validEnd.hash}│eee`,
+        `  ${validEnd.line}#${validEnd.hash}│eee`,
       );
     }
   });

@@ -154,7 +154,7 @@ describe("snapshotId surface (details-only after W2)", () => {
 
         expect(errorMessage).toMatch(/^\[E_STALE_ANCHOR\]/);
         expect(errorMessage).toContain(
-          `>>> 2#${computeLineHash(["one", "TWO!", "three"], 1)}│TWO!`,
+          `  2#${computeLineHash(["one", "TWO!", "three"], 1)}│TWO!`,
         );
       },
     );
@@ -195,7 +195,7 @@ describe("snapshotId surface (details-only after W2)", () => {
         expect(errorMessage).toContain("1 stale anchor");
         expect(errorMessage).not.toContain("2 stale anchors");
         expect(errorMessage).toContain(
-          `>>> 2#${computeLineHash(["one", "TWO!", "three"], 1)}│TWO!`,
+          `  2#${computeLineHash(["one", "TWO!", "three"], 1)}│TWO!`,
         );
       },
     );

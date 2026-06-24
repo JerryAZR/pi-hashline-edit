@@ -209,13 +209,7 @@ function parseAnchorRef(ref: string): Anchor {
 export function formatMismatchError(
   mismatches: HashMismatch[],
   fileLines: readonly string[],
-  retryLines: ReadonlySet<number> = new Set<number>(),
 ): string {
-  const retryLineSet = new Set<number>(retryLines);
-  for (const m of mismatches) {
-    retryLineSet.add(m.line);
-  }
-
   // De-duplicate: same line + same expected hash = same anchor
   const seenKeys = new Set<string>();
   const uniqueMismatches = mismatches.filter((m) => {
@@ -235,31 +229,24 @@ export function formatMismatchError(
       displayLines.add(i);
     }
   }
-  for (const line of retryLineSet) {
-    displayLines.add(line);
-  }
 
   const sorted = [...displayLines].sort((a, b) => a - b);
   const maxDisplayLine = sorted[sorted.length - 1] ?? 1;
   const lineNumberWidth = String(maxDisplayLine).length;
   const anchorList = uniqueMismatches.map((m) => `${m.line}${ANCHOR_SEP}${m.expected}`).join(", ");
   const out: string[] = [
-    `[E_STALE_ANCHOR] ${uniqueMismatches.length} stale anchor${uniqueMismatches.length > 1 ? "s" : ""}: ${anchorList}. Retry with the >>> LINE${ANCHOR_SEP}HASH lines below; keep both endpoints for range replaces.`,
+    `[E_STALE_ANCHOR] ${uniqueMismatches.length} stale anchor${uniqueMismatches.length > 1 ? "s" : ""}: ${anchorList}. The file changed since those anchors were copied. Re-read for fresh anchors, or copy current ones from the lines below. Keep both endpoints for range replaces.`,
     "",
   ];
 
   let prev = -1;
   for (const num of sorted) {
-    if (prev !== -1 && num > prev + 1) out.push("    ...");
+    if (prev !== -1 && num > prev + 1) out.push("  ...");
     prev = num;
     const content = fileLines[num - 1];
     const hash = computeLineHash(fileLines, num - 1);
     const prefix = `${String(num).padStart(lineNumberWidth, " ")}${ANCHOR_SEP}${hash}`;
-    out.push(
-      retryLineSet.has(num)
-        ? `>>> ${prefix}${CONTENT_SEP}${content}`
-        : `    ${prefix}${CONTENT_SEP}${content}`,
-    );
+    out.push(`  ${prefix}${CONTENT_SEP}${content}`);
   }
 
   return out.join("\n");
