@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.5
+
+### Changed
+- **Anchor guidance now says "tool results" instead of "read".** `read`, `grep`, and `edit` diff output all produce valid `LINE#HASH` anchors. Prompts, schema descriptions, and error messages now steer toward the most recent tool result rather than privileging `read`. The merge-recovery tier still only triggers from a `read` snapshot, but that is an implementation detail the model does not need to track.
+- **Stale-anchor errors no longer emit `>>>` arrows.** The arrows assumed the agent got the line number right but the hash wrong, which is rarely the case when content shifts. Agents ignored wrong arrows but still paid the token cost. Context lines now render with a uniform 2-space indent, and the message steers toward re-reading.
+- **`formatMismatchError` lost its `retryLines` parameter.** The set was always just the mismatch lines themselves, already covered by the ±2 context window.
+
+### Fixed
+- **`TEST-GUIDE.md` no longer references the removed fuzzy tier.** The 3-way merge scenario was rewritten to describe the current 2-tier flow (exact match → snapshot merge) instead of the deleted `±1 fuzzy window`.
+
+
 ## 0.11.4
 
 ### Removed

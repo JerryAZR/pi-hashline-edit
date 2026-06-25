@@ -111,7 +111,7 @@ Each entry inserts new lines relative to a single anchor line:
 }
 ```
 
-- `anchor` — a LINE#HASH anchor from a recent `read`. The anchor line is preserved — `lines` go after or before it.
+- `anchor` — a LINE#HASH anchor from a recent tool result (`read`, `grep`, or an `edit` diff). The anchor line is preserved — `lines` go after or before it.
 - `direction` — `"after"` or `"before"`.
 - `lines` — the new content to insert (string array). Do not include the anchor line's content.
 
@@ -133,7 +133,7 @@ Parameters:
 Matches are grouped by file and formatted with `LINE#HASH│` anchors. Context lines also receive hashes, so surrounding lines can be used as edit anchors too. Output is truncated to 100 matches or 50KB.
 ### Chained edits
 
-After a successful edit, the response contains a unified diff where context and added lines carry fresh `LINE#HASH` anchors. These can be used directly in the next `edit` call on the same file without a full re-read, provided the next edit targets the same or nearby lines. For distant changes, use `read` first.
+After a successful edit, the response contains a unified diff where context and added lines carry fresh `LINE#HASH` anchors. These can be used directly in the next `edit` call on the same file without a full re-read, provided the next edit targets the same or nearby lines. For distant changes, re-read first.
 
 ### Diff output
 
